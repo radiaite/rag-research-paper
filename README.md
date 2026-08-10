@@ -2,9 +2,13 @@
 
 > Comprehensive benchmark of 10 RAG retrieval methods on [T2-RAGBench](https://huggingface.co/datasets/G4KMU/t2-ragbench) (23,088 financial QA pairs, 7,318 documents with text + tables).
 
-**Authors:** Meftun Akarsu (THI) · Christopher Mierbach (Radiate)
+[![arXiv](https://img.shields.io/badge/arXiv-2604.01733-b31b1b.svg)](https://arxiv.org/abs/2604.01733)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19382814-blue.svg)](https://doi.org/10.5281/zenodo.19382814)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Paper:** [LaTeX source](paper/main.tex) · **Dataset:** [T2-RAGBench on HuggingFace](https://huggingface.co/datasets/G4KMU/t2-ragbench)
+**Authors:** Meftun Akarsu (Technische Hochschule Ingolstadt) · Christopher Mierbach (Radiate) · Kaan Karaman (Technische Universität München)
+
+**Paper:** [arXiv:2604.01733](https://arxiv.org/abs/2604.01733) · [LaTeX source](paper/main.tex) — **Code & data archive:** [10.5281/zenodo.19382814](https://doi.org/10.5281/zenodo.19382814) — **Dataset:** [T2-RAGBench on HuggingFace](https://huggingface.co/datasets/G4KMU/t2-ragbench)
 
 ---
 
@@ -332,12 +336,25 @@ python scripts/run_all_experiments.py --tier 1
 ## Citation
 
 ```bibtex
-@article{akarsu2026retrieval,
-  title={From BM25 to Corrective RAG: Benchmarking Retrieval Strategies for Text-and-Table Documents},
-  author={Akarsu, Meftun and Mierbach, Christopher},
-  year={2026}
+@article{akarsu2026bm25,
+  title   = {From BM25 to Corrective RAG: Benchmarking Retrieval Strategies for Text-and-Table Documents},
+  author  = {Akarsu, Meftun and Karaman, Recep Kaan and Mierbach, Christopher},
+  journal = {arXiv preprint arXiv:2604.01733},
+  year    = {2026},
+  doi     = {10.48550/arXiv.2604.01733},
+  url     = {https://arxiv.org/abs/2604.01733}
 }
 ```
+
+Author order follows the arXiv record. The code and data archive is deposited separately under [10.5281/zenodo.19382814](https://doi.org/10.5281/zenodo.19382814).
+
+## License
+
+The code in this repository is released under the [MIT License](LICENSE).
+
+The paper itself is distributed by arXiv under **CC BY 4.0**, which covers the
+LaTeX source and figures under [`paper/`](paper/). The two licenses are separate:
+reuse the code under MIT, the paper text under CC BY 4.0 with attribution.
 
 ## Acknowledgments
 
