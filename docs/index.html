@@ -100,6 +100,15 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--link);outline-offse
   max-width:46ch;
   text-wrap:balance;
 }
+/* The answer, before the paper. Someone who reads only this line has the finding. */
+.tldr{
+  margin:1.75rem 0 0;
+  padding-left:1rem;
+  border-left:3px solid var(--sparse);
+  max-width:52ch;
+  font-size:1.0625rem;
+  color:var(--ink);
+}
 .byline{margin:2rem 0 0;font-size:.95rem;line-height:1.5}
 .byline .who{color:var(--ink);font-weight:600}
 .byline .where{color:var(--muted);font-size:.85rem;display:block}
@@ -324,11 +333,13 @@ footer p{margin:0 0 .6rem}
     <h1>From BM25 to Corrective RAG</h1>
     <p class="sub">Benchmarking retrieval strategies for text-and-table documents</p>
 
+    <p class="tldr">Fuse BM25 with dense retrieval, rerank the top 50 with a cross-encoder, and skip HyDE. That takes Recall@5 from .587 to .816.</p>
+
     <div class="byline">
       <ul>
         <li><span class="who">Meftun Akarsu</span><span class="where">Technische Hochschule Ingolstadt</span></li>
-        <li><span class="who">Recep Kaan Karaman</span><span class="where">Technische Universität München</span></li>
         <li><span class="who">Christopher Mierbach</span><span class="where">Radiate</span></li>
+        <li><span class="who">Kaan Karaman</span><span class="where">Technische Universität München</span></li>
       </ul>
     </div>
 
