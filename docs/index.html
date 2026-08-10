@@ -12,6 +12,8 @@
 <meta property="og:image" content="https://mftnakrsu.github.io/rag-research-paper/assets/main_comparison.png">
 <meta name="twitter:card" content="summary_large_image">
 
+<link rel="icon" type="image/png" href="assets/favicon.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -300,6 +302,14 @@ pre{
 footer{border-top:1px solid var(--rule);padding:2.5rem 0 4rem;font-size:.875rem;color:var(--muted)}
 footer p{margin:0 0 .6rem}
 
+/* Support credit. Radiate's role in the paper is the compute, per the
+   Acknowledgments — so it sits here, labelled, not in the masthead. */
+.credit{margin:2rem 0 0;padding-top:1.5rem;border-top:1px solid var(--rule)}
+.credit .eyebrow{display:block;margin:0 0 .7rem}
+.credit a{display:inline-block;line-height:0}
+.credit img{height:2.5rem;width:auto;opacity:.85;transition:opacity .15s}
+.credit a:hover img{opacity:1}
+
 @media (prefers-reduced-motion:reduce){
   .bar > i{animation:none;transform:scaleX(1)}
   *{transition:none!important}
@@ -546,7 +556,12 @@ footer p{margin:0 0 .6rem}
 <footer>
   <div class="wrap narrow">
     <p>Benchmark code is released under the MIT licence at <a href="https://github.com/mftnakrsu/rag-research-paper">mftnakrsu/rag-research-paper</a>. The paper text and figures are distributed by arXiv under CC BY 4.0.</p>
-    <p>Built on <a href="https://arxiv.org/abs/2506.12071">T²-RAGBench</a> by Strich et al., EACL 2026. Azure AI compute credits provided by Radiate.</p>
+    <p>Built on <a href="https://arxiv.org/abs/2506.12071">T²-RAGBench</a> by Strich et al., EACL 2026.</p>
+
+    <div class="credit">
+      <span class="eyebrow">Azure AI compute provided by</span>
+      <a href="https://radiaite.com/"><img src="assets/radiaite-logo.png" alt="RADIAITE — AI for Impact" width="635" height="198"></a>
+    </div>
   </div>
 </footer>
 
