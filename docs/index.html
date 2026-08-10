@@ -30,7 +30,9 @@
   --sparse:#c07d16;
   --dense:#6353d8;
   --other:#68737f;
+  /* oklab, so the blend between the two signals does not pass through mud. */
   --fusion:linear-gradient(90deg,#c07d16,#6353d8);
+  --fusion:linear-gradient(90deg in oklab,#c07d16,#6353d8);
 
   --link:#6353d8;
   --track:#eceef3;
@@ -42,23 +44,9 @@
   --measure:min(100%,42rem);
 }
 
-@media (prefers-color-scheme:dark){
-  :root{
-    --ink:#eef1f6;
-    --body:#b5bcc9;
-    --muted:#828b99;
-    --page:#0e1117;
-    --card:#151a23;
-    --rule:#242b36;
-    --rule-strong:#38414f;
-    --sparse:#e5aa4c;
-    --dense:#9b8dff;
-    --other:#8a95a3;
-    --fusion:linear-gradient(90deg,#e5aa4c,#9b8dff);
-    --link:#9b8dff;
-    --track:#1d232d;
-  }
-}
+/* Deliberately light in both system themes. The figures are matplotlib PNGs on
+   white, and a dark page frames every one of them in a bright rectangle. */
+:root{color-scheme:light}
 
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -532,11 +520,12 @@ footer p{margin:0 0 .6rem}
 </section>
 
 <section>
-  <div class="wrap narrow cite">
+  <div class="wrap narrow">
     <div class="section-head">
       <p class="eyebrow">Citation</p>
       <h2>Cite this work</h2>
     </div>
+    <div class="cite">
     <button class="copy" type="button" id="copy">Copy</button>
 <pre id="bib">@article{akarsu2026bm25,
   title   = {From BM25 to Corrective RAG: Benchmarking Retrieval
@@ -548,6 +537,7 @@ footer p{margin:0 0 .6rem}
   doi     = {10.48550/arXiv.2604.01733},
   url     = {https://arxiv.org/abs/2604.01733}
 }</pre>
+    </div>
   </div>
 </section>
 
