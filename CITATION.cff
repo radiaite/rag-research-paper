@@ -1,0 +1,44 @@
+cff-version: 1.2.0
+message: "If you use this software or its results, please cite the paper below."
+title: "From BM25 to Corrective RAG: Benchmarking Retrieval Strategies for Text-and-Table Documents"
+abstract: >-
+  Benchmark code for a systematic comparison of ten retrieval strategies —
+  sparse, dense, hybrid fusion, cross-encoder reranking, query expansion, index
+  augmentation and adaptive retrieval — on T2-RAGBench, comprising 23,088
+  financial QA queries over 7,318 documents with mixed text-and-table content.
+type: software
+license: MIT
+repository-code: "https://github.com/mftnakrsu/rag-research-paper"
+keywords:
+  - retrieval-augmented generation
+  - hybrid retrieval
+  - cross-encoder reranking
+  - financial question answering
+  - text-and-table documents
+authors:
+  - family-names: Akarsu
+    given-names: Meftun
+    affiliation: Technische Hochschule Ingolstadt
+  - family-names: Mierbach
+    given-names: Christopher
+    affiliation: Radiate
+  - family-names: Karaman
+    given-names: Kaan
+    affiliation: Technische Universität München
+# Author order below follows the arXiv record (arXiv:2604.01733), which is what
+# citation managers resolve against. The repository author list above uses the
+# current manuscript's order and affiliations.
+preferred-citation:
+  type: article
+  title: "From BM25 to Corrective RAG: Benchmarking Retrieval Strategies for Text-and-Table Documents"
+  year: 2026
+  journal: "arXiv preprint arXiv:2604.01733"
+  doi: "10.48550/arXiv.2604.01733"
+  url: "https://arxiv.org/abs/2604.01733"
+  authors:
+    - family-names: Akarsu
+      given-names: Meftun
+    - family-names: Karaman
+      given-names: Recep Kaan
+    - family-names: Mierbach
+      given-names: Christopher
