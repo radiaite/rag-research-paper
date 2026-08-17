@@ -9,346 +9,467 @@
 <meta property="og:type" content="article">
 <meta property="og:title" content="From BM25 to Corrective RAG">
 <meta property="og:description" content="Ten retrieval strategies benchmarked on 23,088 financial QA queries over 7,318 text-and-table documents.">
-<meta property="og:image" content="https://mftnakrsu.github.io/rag-research-paper/assets/main_comparison.png">
+<meta property="og:image" content="https://radiaite.github.io/rag-research-paper/assets/main_comparison.png">
 <meta name="twitter:card" content="summary_large_image">
 
 <link rel="icon" type="image/png" href="assets/favicon.png">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Spectral:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
+/* ─────────────────────────────────────────────────────────────
+   Tokens — the subset of the RADIAITE design system this page uses.
+   Values are the brand's; the ramps are trimmed to what is referenced
+   here rather than copied whole.
+   ───────────────────────────────────────────────────────────── */
 :root{
-  --ink:#141821;
-  --body:#39404e;
-  --muted:#6b7480;
-  --page:#fcfcfd;
-  --card:#ffffff;
-  --rule:#e3e6ec;
-  --rule-strong:#c9cdd6;
+  --ink-900:#17222e; --ink-800:#22303f; --ink-700:#2e3e50; --ink-600:#3e4c5e;
+  --ink-500:#5a6a7e; --ink-400:#8091a3; --ink-300:#a3b0be; --ink-200:#c0cbd8;
+  --ink-100:#d9e0e8;
 
-  /* The two retrieval signals. Fusion is literally both. */
-  --sparse:#c07d16;
-  --dense:#6353d8;
-  --other:#68737f;
-  /* oklab, so the blend between the two signals does not pass through mud. */
-  --fusion:linear-gradient(90deg,#c07d16,#6353d8);
-  --fusion:linear-gradient(90deg in oklab,#c07d16,#6353d8);
+  --paper-000:#fcfaf4; --paper-050:#f9f5ec; --paper-100:#f4f1e8;
+  --paper-200:#ece7d9; --paper-300:#dcd6c4; --paper-400:#c5bca6;
 
-  --link:#6353d8;
-  --track:#eceef3;
+  --amber-100:#f7ecd2; --amber-300:#e4c878; --amber-400:#d9a441; --amber-600:#9e731c;
 
-  --display:"Space Grotesk",ui-sans-serif,system-ui,sans-serif;
-  --text:"Source Serif 4",Georgia,serif;
-  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --verm-500:#cc4425; --verm-600:#b0381c;
 
-  --measure:min(100%,42rem);
+  --moss-500:#5c6b3f;
+
+  --text-strong:var(--ink-900);
+  --text-body:var(--ink-800);
+  --text-muted:var(--ink-700);
+  --text-faint:var(--ink-600);
+  --text-inverse-muted:var(--ink-200);
+
+  --surface-page:var(--paper-100);
+  --surface-page-alt:var(--paper-200);
+  --surface-card:var(--paper-000);
+  --surface-ink:var(--ink-900);
+
+  --rule-color:color-mix(in oklab, var(--ink-700) 20%, transparent);
+  --rule-color-strong:color-mix(in oklab, var(--ink-700) 42%, transparent);
+  --rule-color-faint:color-mix(in oklab, var(--ink-700) 10%, transparent);
+  --rule-hair:1px solid var(--rule-color);
+  --rule-hair-faint:1px solid var(--rule-color-faint);
+  --rule-strong:1px solid var(--rule-color-strong);
+  --rule-on-ink:1px solid color-mix(in oklab, var(--paper-100) 22%, transparent);
+
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:Spectral,Georgia,"Times New Roman",serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+  --gutter:clamp(1.25rem, 4vw, 3rem);
+  --measure:1240px;
 }
 
-/* Deliberately light in both system themes. The figures are matplotlib PNGs on
-   white, and a dark page frames every one of them in a bright rectangle. */
-:root{color-scheme:light}
-
+/* ─────────────────────────────────────────────────────────────
+   Reset & base
+   ───────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0;
-  background:var(--page);
-  color:var(--body);
-  font-family:var(--text);
-  font-size:1.0625rem;
+  background:var(--surface-page);
+  color:var(--text-body);
+  font-family:var(--f-body);
+  font-size:17px;
   line-height:1.62;
-  font-optical-sizing:auto;
+  -webkit-font-smoothing:antialiased;
 }
 img{max-width:100%;height:auto;display:block}
-a{color:var(--link);text-decoration-thickness:1px;text-underline-offset:2px}
-a:focus-visible,button:focus-visible{outline:2px solid var(--link);outline-offset:3px;border-radius:2px}
+a{color:var(--ink-900);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{color:var(--verm-600)}
+:focus-visible{outline:2px solid var(--verm-500);outline-offset:3px}
 
-.wrap{max-width:64rem;margin:0 auto;padding:0 1.5rem}
-/* Constrain the measure, not the column — so every section keeps the same left edge. */
-.narrow > *{max-width:var(--measure)}
+.wrap{width:100%;max-width:var(--measure);margin-inline:auto;padding-inline:var(--gutter)}
+.wrap.narrow{max-width:820px}
 
+/* ── Type roles ── */
 .eyebrow{
-  font-family:var(--mono);
-  font-size:.75rem;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  color:var(--muted);
+  font-family:var(--f-mono);font-size:11px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600);
+  margin:0;
 }
+h1,h2,h3{
+  font-family:var(--f-display);font-weight:600;color:var(--text-strong);
+  letter-spacing:-.035em;line-height:1.02;margin:0;
+  font-variation-settings:"opsz" 72;
+}
+h1{font-size:clamp(2.6rem,6.4vw,4.6rem)}
+h2{font-size:clamp(2rem,4.4vw,3.1rem);line-height:1.05}
+h3{font-size:1.22rem;line-height:1.22;letter-spacing:-.02em;font-variation-settings:"opsz" 24}
+p{margin:0 0 1.05em}
+p:last-child{margin-bottom:0}
 
-/* ---------- masthead ---------- */
-.masthead{padding:4.5rem 0 3rem;border-bottom:1px solid var(--rule)}
-.masthead h1{
-  font-family:var(--display);
-  font-weight:700;
-  font-size:clamp(2.1rem,6.2vw,4rem);
-  line-height:1.02;
-  letter-spacing:-.033em;
-  color:var(--ink);
-  margin:1.1rem 0 0;
-  text-wrap:balance;
+/* ── Section header: 04 ── WHAT YOU GET ............ THREE CAPABILITIES ── */
+section{padding-block:clamp(4rem,9vw,7.5rem)}
+.band-alt{background:var(--surface-page-alt)}
+.rule-head{
+  display:flex;align-items:baseline;gap:1.1rem;
+  padding-bottom:.7rem;border-bottom:var(--rule-hair);
+  margin-bottom:clamp(2.2rem,5vw,3.4rem);
 }
+.rule-head .num{font-family:var(--f-mono);font-size:11px;color:var(--ink-600);letter-spacing:.1em}
+.rule-head .label{font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-800)}
+.rule-head .aside{margin-left:auto;font-family:var(--f-mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-600)}
+.lede{max-width:60ch;color:var(--text-muted);margin-top:1.5rem}
+
+/* ─────────────────────────────────────────────────────────────
+   Topbar — RADIAITE wordmark + paper links
+   ───────────────────────────────────────────────────────────── */
+.topbar{border-bottom:var(--rule-hair);background:var(--surface-page)}
+.topbar .wrap{display:flex;align-items:center;gap:1.5rem;min-height:62px;flex-wrap:wrap}
+.wordmark{
+  font-family:var(--f-display);font-weight:700;font-size:1.06rem;
+  letter-spacing:-.02em;color:var(--ink-900);text-decoration:none;
+  display:inline-flex;align-items:center;
+}
+.wordmark .cap{
+  background:var(--amber-400);border-radius:2px;
+  padding:.06em .1em;margin-inline:.01em;
+}
+.wordmark:hover{color:var(--ink-900)}
+.topbar nav{margin-left:auto}
+.topbar ul{list-style:none;display:flex;flex-wrap:wrap;gap:.55rem 1.25rem;margin:0;padding:0}
+.topbar a{
+  font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-700);text-decoration:none;
+  padding-bottom:2px;border-bottom:1px solid transparent;
+}
+.topbar a:hover{color:var(--verm-600);border-bottom-color:var(--verm-500)}
+
+/* ─────────────────────────────────────────────────────────────
+   Masthead
+   ───────────────────────────────────────────────────────────── */
+.masthead{padding-block:clamp(3rem,7vw,5rem) clamp(2.5rem,5vw,3.5rem)}
+.masthead .wrap{
+  display:grid;gap:clamp(2.5rem,5vw,4rem);
+  grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);
+  align-items:start;
+}
+.masthead h1{margin:.85rem 0 0}
 .masthead .sub{
-  font-family:var(--display);
-  font-weight:500;
-  font-size:clamp(1.05rem,2.4vw,1.4rem);
-  line-height:1.25;
-  letter-spacing:-.012em;
-  color:var(--muted);
-  margin:.55rem 0 0;
-  max-width:46ch;
-  text-wrap:balance;
+  font-size:clamp(1.15rem,2vw,1.4rem);color:var(--text-muted);
+  margin:1.1rem 0 0;max-width:32ch;line-height:1.4;
 }
-/* The answer, before the paper. Someone who reads only this line has the finding. */
 .tldr{
-  margin:1.75rem 0 0;
-  padding-left:1rem;
-  border-left:3px solid var(--sparse);
-  max-width:52ch;
-  font-size:1.0625rem;
-  color:var(--ink);
+  margin:2rem 0 0;max-width:46ch;font-size:1.08rem;color:var(--text-body);
 }
-.byline{margin:2rem 0 0;font-size:.95rem;line-height:1.5}
-.byline .who{color:var(--ink);font-weight:600}
-.byline .where{color:var(--muted);font-size:.85rem;display:block}
-.byline ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:.35rem 2.25rem}
-
-.links{display:flex;flex-wrap:wrap;gap:.5rem;margin:2rem 0 0;padding:0;list-style:none}
-.links a{
-  display:inline-block;
-  font-family:var(--mono);
-  font-size:.8125rem;
-  letter-spacing:.01em;
-  text-decoration:none;
-  color:var(--ink);
-  border:1px solid var(--rule-strong);
-  border-radius:999px;
-  padding:.4rem .9rem;
-  transition:border-color .15s,color .15s;
+.tldr .mark{position:relative;white-space:nowrap;font-weight:600;color:var(--ink-900)}
+.tldr .mark .pen-u{
+  position:absolute;left:-9%;bottom:-.5em;width:118%;height:.46em;overflow:visible;
 }
-.links a:hover{border-color:var(--link);color:var(--link)}
+/* Both hand-drawn marks are the same pen; only the pressure differs. */
+.pen-u path,.pen-loop path{fill:none;stroke:var(--verm-500);stroke-linecap:round}
+.pen-u path{stroke-width:2.2}
 
-/* ---------- sections ---------- */
-section{padding:3.5rem 0}
-.section-head{margin:0 0 2rem}
-.section-head h2{
-  font-family:var(--display);
-  font-weight:700;
-  font-size:clamp(1.35rem,3vw,1.85rem);
-  letter-spacing:-.02em;
-  color:var(--ink);
-  margin:.4rem 0 0;
+/* Spec panel — the site's label/value hairline rows */
+.spec{border-top:var(--rule-hair);margin-top:.35rem}
+.spec dl{margin:0}
+.spec-row{
+  display:flex;align-items:baseline;gap:1rem;justify-content:space-between;
+  padding:.72rem 0;border-bottom:var(--rule-hair);
 }
-.section-head p{margin:.6rem 0 0;color:var(--muted);font-size:.95rem;max-width:52ch}
+.spec dt{
+  font-family:var(--f-mono);font-size:11px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-500);margin:0;
+}
+.spec dd{
+  margin:0;font-family:var(--f-display);font-weight:600;font-size:1.02rem;
+  color:var(--ink-900);letter-spacing:-.02em;font-variant-numeric:tabular-nums;
+  text-align:right;
+}
+.spec .note{
+  font-family:var(--f-body);font-style:italic;font-size:.94rem;color:var(--text-faint);
+  margin-top:1rem;
+}
 
-/* ---------- the leaderboard: the page's signature ---------- */
-.board{border-top:1px solid var(--rule-strong);margin:0}
+/* Byline */
+.byline{
+  margin:clamp(2.2rem,4vw,3rem) 0 0;border-top:var(--rule-strong);padding:1.1rem 0 0;
+  list-style:none;display:flex;flex-wrap:wrap;gap:.4rem 2.5rem;
+}
+.byline li{display:flex;flex-direction:column;gap:.15rem}
+.byline .who{font-family:var(--f-display);font-weight:600;font-size:1rem;color:var(--ink-900);letter-spacing:-.015em}
+.byline .where{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-500)}
+
+/* ─────────────────────────────────────────────────────────────
+   01 — The ranking (signature element)
+   ───────────────────────────────────────────────────────────── */
+.board{margin-top:.5rem;border-top:var(--rule-strong)}
 .row{
-  display:grid;
-  grid-template-columns:2.25rem minmax(0,1fr) 3.5rem;
-  align-items:center;
-  gap:0 .9rem;
-  padding:.85rem 0;
-  border-bottom:1px solid var(--rule);
+  display:grid;align-items:center;column-gap:clamp(.9rem,2vw,1.6rem);
+  grid-template-columns:2.4rem minmax(9rem,1.1fr) minmax(0,2fr) 3.4rem;
+  padding:.95rem 0;border-bottom:var(--rule-hair);
 }
-.row .rank{
-  font-family:var(--mono);
-  font-size:.8125rem;
-  color:var(--muted);
-  font-variant-numeric:tabular-nums;
-}
+.row .rank{font-family:var(--f-mono);font-size:11px;color:var(--ink-500);letter-spacing:.08em}
 .row .name{
-  font-family:var(--display);
-  font-weight:500;
-  font-size:1rem;
-  color:var(--ink);
-  letter-spacing:-.008em;
-  line-height:1.2;
+  font-family:var(--f-display);font-weight:600;font-size:1.02rem;color:var(--ink-900);
+  letter-spacing:-.022em;display:flex;flex-direction:column;align-items:flex-start;
+  gap:.16rem;line-height:1.2;
 }
 .row .fam{
-  display:block;
-  font-family:var(--mono);
-  font-size:.6875rem;
-  letter-spacing:.05em;
-  text-transform:uppercase;
-  color:var(--muted);
-  margin-top:.2rem;
+  font-family:var(--f-mono);font-size:10px;font-weight:400;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-500);
 }
 .row .score{
-  font-family:var(--mono);
-  font-size:.9375rem;
-  color:var(--ink);
-  text-align:right;
-  font-variant-numeric:tabular-nums;
+  font-family:var(--f-display);font-weight:600;font-size:1.16rem;color:var(--ink-900);
+  text-align:right;font-variant-numeric:tabular-nums;letter-spacing:-.03em;
 }
-.bar{
-  grid-column:2 / -1;
-  height:7px;
-  margin-top:.55rem;
-  background:var(--track);
-  border-radius:999px;
-  overflow:hidden;
+.bar{height:9px;background:var(--paper-300);overflow:hidden}
+.bar i{
+  display:block;height:100%;width:var(--w);background:var(--family);
+  transform:scaleX(0);transform-origin:left;
+  animation:grow .85s cubic-bezier(.22,.7,.3,1) var(--d,0s) both;
 }
-.bar > i{
-  display:block;
-  height:100%;
-  width:var(--w);
-  border-radius:999px;
-  transform-origin:left center;
-  transform:scaleX(0);
-  animation:grow .85s cubic-bezier(.22,.7,.24,1) forwards;
-  animation-delay:var(--d,0s);
-}
-.f-sparse > i{background:var(--sparse)}
-.f-dense  > i{background:var(--dense)}
-.f-other  > i{background:var(--other)}
-.f-fusion > i{background:var(--fusion)}
 @keyframes grow{to{transform:scaleX(1)}}
 
-.row.lead .name{font-weight:700}
-.row.lead .score{font-weight:500}
+/* One declaration of the signal→colour key, used by the bars and the legend
+   swatches alike. The chart further down shares the family *hues* but ramps
+   values within them to separate nine lines, so only lexical and query-side
+   are the same value here and there — see the palette note in
+   scripts/generate_web_figures.py. */
+.f-sparse{--family:var(--ink-800)}
+.f-dense {--family:var(--moss-500)}
+.f-fusion{--family:var(--amber-400)}
+.f-other {--family:var(--paper-400)}
 
-/* the upset marker */
-.row.upset{position:relative}
-.row.upset .note{
-  grid-column:2 / -1;
-  font-family:var(--mono);
-  font-size:.6875rem;
-  letter-spacing:.02em;
-  color:var(--sparse);
-  margin-top:.5rem;
+.row.lead{background:var(--amber-100)}
+.row.lead .score{font-size:1.34rem}
+
+/* the pen annotation — the paper's anomaly, marked by hand */
+.row.upset{padding-bottom:1.15rem}
+.circled{position:relative;display:inline-block}
+.pen-loop{
+  position:absolute;
+  left:-.85rem;top:-.42rem;
+  width:calc(100% + 1.7rem);height:calc(100% + .84rem);
+  overflow:visible;pointer-events:none;
+}
+.pen-loop path{
+  stroke-width:1.9;
+  stroke-dasharray:360;stroke-dashoffset:360;
+  animation:draw 1.15s ease-out .95s forwards;
+}
+@keyframes draw{to{stroke-dashoffset:0}}
+.row .note{
+  grid-column:2 / -1;font-family:var(--f-body);font-style:italic;
+  color:var(--verm-600);font-size:.95rem;margin-top:.55rem;line-height:1.4;
 }
 
 .legend{
-  display:flex;flex-wrap:wrap;gap:.35rem 1.5rem;
-  margin:1.5rem 0 0;padding:0;list-style:none;
-  font-family:var(--mono);font-size:.75rem;color:var(--muted);
+  list-style:none;display:flex;flex-wrap:wrap;gap:.5rem 1.8rem;
+  margin:1.4rem 0 0;padding:0;
+  font-family:var(--f-mono);font-size:10.5px;letter-spacing:.11em;
+  text-transform:uppercase;color:var(--ink-600);
 }
 .legend li{display:flex;align-items:center;gap:.5rem}
-.legend .sw{width:2.75rem;height:6px;border-radius:999px;flex:none}
-.sw.s{background:var(--sparse)}
-.sw.d{background:var(--dense)}
-.sw.f{background:var(--fusion)}
-.sw.o{background:var(--other)}
-.board-note{margin:1.15rem 0 0;font-size:.875rem;color:var(--muted);max-width:58ch}
+.sw{width:16px;height:9px;display:inline-block;background:var(--family)}
 
-/* ---------- findings ---------- */
-.findings{display:grid;gap:2.25rem}
-@media (min-width:56rem){.findings{grid-template-columns:repeat(3,1fr);gap:2.5rem}}
-.finding h3{
-  font-family:var(--display);font-weight:700;
-  font-size:1.0625rem;letter-spacing:-.01em;
-  color:var(--ink);margin:.75rem 0 .5rem;
+.board-note{
+  margin-top:1.9rem;font-size:.95rem;color:var(--text-faint);max-width:78ch;
+  padding-top:1.1rem;border-top:var(--rule-hair-faint);
 }
-.finding p{margin:0;font-size:.9688rem}
+
+/* ─────────────────────────────────────────────────────────────
+   02 — Findings, as tab-labelled cards
+   ───────────────────────────────────────────────────────────── */
+.findings{display:grid;gap:clamp(1.2rem,2.4vw,1.8rem);grid-template-columns:repeat(3,minmax(0,1fr))}
+.finding{position:relative;padding-top:1.35rem}
+.finding .tab{
+  position:absolute;top:0;left:0;
+  font-family:var(--f-mono);font-size:10px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-600);
+  background:var(--surface-card);border:var(--rule-hair);border-bottom:0;
+  border-radius:3px 3px 0 0;padding:.28rem .6rem;
+}
+.finding .card{
+  background:var(--surface-card);border:var(--rule-hair);
+  padding:clamp(1.3rem,2.4vw,1.9rem);height:100%;
+}
 .finding .stat{
-  font-family:var(--mono);font-size:.75rem;letter-spacing:.06em;
-  text-transform:uppercase;color:var(--muted);
-  padding-top:.75rem;border-top:2px solid var(--rule-strong);display:block;
+  display:block;font-family:var(--f-display);font-weight:700;
+  font-size:clamp(1.5rem,2.5vw,1.95rem);letter-spacing:-.04em;color:var(--amber-600);
+  font-variant-numeric:tabular-nums;line-height:1;margin-bottom:1.1rem;
+}
+.finding h3{margin-bottom:.7rem}
+.finding p{font-size:.99rem;color:var(--text-muted);margin:0}
+
+/* ─────────────────────────────────────────────────────────────
+   03 — Abstract, on ink
+   ───────────────────────────────────────────────────────────── */
+.ink{background:var(--surface-ink);color:var(--text-inverse-muted)}
+.ink .rule-head{border-bottom:var(--rule-on-ink)}
+.ink .rule-head .num{color:var(--ink-400)}
+.ink .rule-head .label{color:var(--paper-200)}
+.ink .rule-head .aside{color:var(--ink-300)}
+.ink h2{color:var(--paper-050)}
+.ink h2 em{font-style:normal;color:var(--amber-300)}
+.ink p{color:var(--ink-100)}
+.abstract{display:grid;gap:clamp(2rem,4vw,3.4rem);grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);align-items:start;margin-top:clamp(2rem,4vw,3rem)}
+.abstract .body p{font-size:1.02rem}
+.abstract .aside-note{
+  font-family:var(--f-mono);font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--ink-400);border-top:var(--rule-on-ink);
+  padding-top:.8rem;
 }
 
-/* ---------- recommendations ---------- */
-.recs{list-style:none;margin:0;padding:0;counter-reset:r}
-.recs li{
-  counter-increment:r;
-  display:grid;
-  grid-template-columns:2.5rem 1fr;
-  gap:0 1rem;
-  padding:1.1rem 0;
-  border-bottom:1px solid var(--rule);
-}
-.recs li::before{
-  content:counter(r,decimal-leading-zero);
-  font-family:var(--mono);font-size:.8125rem;color:var(--muted);
-  padding-top:.15rem;
-}
-.recs b{font-family:var(--display);font-weight:700;color:var(--ink);letter-spacing:-.008em}
-.recs span{display:block;font-size:.9375rem;margin-top:.15rem}
-
-/* ---------- figures ---------- */
-figure{margin:0 0 2.75rem}
+/* ─────────────────────────────────────────────────────────────
+   04 — Figures
+   ───────────────────────────────────────────────────────────── */
+figure{margin:0 0 clamp(2.4rem,5vw,3.6rem)}
+figure:last-child{margin-bottom:0}
 figure img{
-  border:1px solid var(--rule);
-  border-radius:6px;
-  background:#fff;
-  padding:.75rem;
+  background:var(--paper-000);border:var(--rule-hair);
+  padding:clamp(.8rem,2vw,1.5rem);width:100%;
 }
-figcaption{margin-top:.75rem;font-size:.875rem;color:var(--muted);max-width:60ch}
-figcaption b{color:var(--ink);font-weight:600}
+figcaption{
+  display:grid;gap:.35rem 1.4rem;grid-template-columns:7.5rem minmax(0,1fr);
+  margin-top:.9rem;font-size:.95rem;color:var(--text-muted);
+}
+figcaption .fignum{
+  font-family:var(--f-mono);font-size:10.5px;font-weight:500;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-500);padding-top:.28em;
+}
+figcaption b{font-family:var(--f-display);font-weight:600;color:var(--ink-900);letter-spacing:-.015em}
 
-/* ---------- data table ---------- */
-.scroller{overflow-x:auto;border:1px solid var(--rule);border-radius:6px;background:var(--card)}
-table{border-collapse:collapse;width:100%;font-family:var(--mono);font-size:.8125rem}
-th,td{padding:.55rem .8rem;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:var(--card)}
+/* ─────────────────────────────────────────────────────────────
+   05 — Recommendations
+   ───────────────────────────────────────────────────────────── */
+.recs{list-style:none;margin:0;padding:0;border-top:var(--rule-strong)}
+.recs li{
+  display:grid;gap:.3rem 1.6rem;grid-template-columns:2.6rem minmax(0,1fr);
+  padding:1.15rem 0;border-bottom:var(--rule-hair);
+}
+.recs .n{font-family:var(--f-mono);font-size:11px;color:var(--ink-600);letter-spacing:.08em;padding-top:.35em}
+.recs b{
+  display:block;font-family:var(--f-display);font-weight:600;font-size:1.06rem;
+  color:var(--ink-900);letter-spacing:-.022em;margin-bottom:.22rem;
+}
+.recs span{display:block;color:var(--text-muted);font-size:.99rem}
+
+/* ─────────────────────────────────────────────────────────────
+   06 — Full results table
+   ───────────────────────────────────────────────────────────── */
+.scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;min-width:760px;font-variant-numeric:tabular-nums}
 thead th{
-  color:var(--muted);font-weight:400;font-size:.6875rem;
-  letter-spacing:.06em;text-transform:uppercase;
-  border-bottom:1px solid var(--rule-strong);
+  font-family:var(--f-mono);font-size:10px;font-weight:500;letter-spacing:.12em;
+  text-transform:uppercase;color:var(--ink-600);text-align:right;
+  padding:0 .55rem .7rem;border-bottom:var(--rule-strong);white-space:nowrap;
 }
-tbody tr{border-bottom:1px solid var(--rule)}
-tbody tr:last-child{border-bottom:0}
-tbody tr.best td{color:var(--ink);font-weight:500}
-td{color:var(--body)}
+thead th:first-child{text-align:left;padding-left:0}
+tbody th{
+  font-family:var(--f-display);font-weight:600;font-size:.98rem;color:var(--ink-900);
+  text-align:left;letter-spacing:-.02em;padding:.72rem .55rem .72rem 0;white-space:nowrap;
+}
+tbody td{
+  padding:.72rem .55rem;text-align:right;font-size:.95rem;color:var(--text-muted);
+  font-family:var(--f-mono);
+}
+tbody tr{border-bottom:var(--rule-hair)}
+tbody tr.best{background:var(--amber-100)}
+tbody tr.best th,tbody tr.best td{color:var(--ink-900)}
+tbody tr.best td{font-weight:500}
+tbody tr.best th{padding-left:.55rem}
 
-/* ---------- cite ---------- */
-.cite{position:relative}
-pre{
-  margin:0;padding:1.25rem;overflow-x:auto;
-  background:var(--card);border:1px solid var(--rule);border-radius:6px;
-  font-family:var(--mono);font-size:.8125rem;line-height:1.7;color:var(--body);
+/* ─────────────────────────────────────────────────────────────
+   07 — Citation
+   ───────────────────────────────────────────────────────────── */
+.cite{position:relative;background:var(--surface-card);border:var(--rule-hair);padding:clamp(1.1rem,2.4vw,1.6rem)}
+.cite pre{
+  margin:0;overflow-x:auto;font-family:var(--f-mono);font-size:12.5px;
+  line-height:1.72;color:var(--ink-800);
 }
 .copy{
   position:absolute;top:.75rem;right:.75rem;
-  font-family:var(--mono);font-size:.6875rem;letter-spacing:.04em;text-transform:uppercase;
-  background:var(--page);color:var(--muted);
-  border:1px solid var(--rule-strong);border-radius:4px;
-  padding:.35rem .6rem;cursor:pointer;
+  font-family:var(--f-mono);font-size:10px;font-weight:500;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ink-900);
+  background:var(--paper-100);border:1px solid var(--ink-900);
+  padding:.42rem .8rem;cursor:pointer;transition:background .15s,color .15s;
 }
-.copy:hover{color:var(--link);border-color:var(--link)}
+.copy:hover{background:var(--ink-900);color:var(--paper-100)}
 
-footer{border-top:1px solid var(--rule);padding:2.5rem 0 4rem;font-size:.875rem;color:var(--muted)}
-footer p{margin:0 0 .6rem}
+/* ─────────────────────────────────────────────────────────────
+   Footer
+   ───────────────────────────────────────────────────────────── */
+footer{background:var(--surface-page-alt);border-top:var(--rule-strong);padding-block:clamp(3rem,6vw,4.5rem)}
+footer .wrap{display:grid;gap:clamp(2rem,4vw,3.5rem);grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);align-items:start}
+footer p{font-size:.95rem;color:var(--text-faint);max-width:62ch}
+.credit{border-top:var(--rule-hair);padding-top:1.1rem}
+.credit .eyebrow{display:block;margin-bottom:1rem}
+.credit img{width:190px;height:auto}
 
-/* Support credit. Radiate's role in the paper is the compute, per the
-   Acknowledgments — so it sits here, labelled, not in the masthead. */
-.credit{margin:2rem 0 0;padding-top:1.5rem;border-top:1px solid var(--rule)}
-.credit .eyebrow{display:block;margin:0 0 .7rem}
-.credit a{display:inline-block;line-height:0}
-.credit img{height:2.5rem;width:auto;opacity:.85;transition:opacity .15s}
-.credit a:hover img{opacity:1}
+/* ─────────────────────────────────────────────────────────────
+   Responsive
+   ───────────────────────────────────────────────────────────── */
+@media (max-width:940px){
+  .masthead .wrap,.abstract,footer .wrap,.findings{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:680px){
+  body{font-size:16px}
+  /* rank and name keep their auto-placed cells on row 1; pinning the score
+     there too is what pushes the bar and note onto their own full-width rows. */
+  .row{grid-template-columns:2rem minmax(0,1fr) 3.4rem;row-gap:.5rem}
+  .row .score{grid-area:1 / 3}
+  .row .bar{grid-area:2 / 1 / auto / -1}
+  .row .note{grid-area:3 / 1 / auto / -1;margin-top:0}
+  .pen-loop{display:none}
+  figcaption{grid-template-columns:minmax(0,1fr)}
+  .topbar .wrap{padding-block:.9rem}
+}
 
 @media (prefers-reduced-motion:reduce){
-  .bar > i{animation:none;transform:scaleX(1)}
-  *{transition:none!important}
+  .bar i{animation:none;transform:scaleX(1)}
+  .pen-loop path{animation:none;stroke-dashoffset:0}
+  .copy{transition:none}
 }
 </style>
 </head>
 <body>
 
+<div class="topbar">
+  <div class="wrap">
+    <a class="wordmark" href="https://radiaite.com/">RADI<span class="cap">AI</span>TE</a>
+    <nav aria-label="Paper resources">
+      <ul>
+        <li><a href="https://arxiv.org/abs/2604.01733">arXiv</a></li>
+        <li><a href="https://arxiv.org/pdf/2604.01733">PDF</a></li>
+        <li><a href="https://github.com/radiaite/rag-research-paper">Code</a></li>
+        <li><a href="https://huggingface.co/datasets/G4KMU/t2-ragbench">Dataset</a></li>
+        <li><a href="https://doi.org/10.5281/zenodo.19382814">DOI</a></li>
+      </ul>
+    </nav>
+  </div>
+</div>
+
 <header class="masthead">
   <div class="wrap">
-    <p class="eyebrow">arXiv:2604.01733 · cs.IR · 2 April 2026</p>
-    <h1>From BM25 to Corrective RAG</h1>
-    <p class="sub">Benchmarking retrieval strategies for text-and-table documents</p>
+    <div>
+      <p class="eyebrow">arXiv:2604.01733 · cs.IR · 2 April 2026</p>
+      <h1>From BM25 to Corrective RAG</h1>
+      <p class="sub">Benchmarking retrieval strategies for text-and-table documents</p>
 
-    <p class="tldr">Fuse BM25 with dense retrieval, rerank the top 50 with a cross-encoder, and skip HyDE. That takes Recall@5 from .587 to .816.</p>
+      <p class="tldr">Fuse BM25 with dense retrieval, rerank the top 50 with a cross-encoder, and skip HyDE. That takes Recall@5 from .587 to <span class="mark">.816<svg class="pen-u" viewBox="0 0 120 14" preserveAspectRatio="none" aria-hidden="true"><path d="M3 6 C28 2.4, 74 2.2, 117 4.6"/><path d="M7 10.4 C34 8, 86 7.4, 113 9.6" opacity=".5"/></svg></span>.</p>
 
-    <div class="byline">
-      <ul>
+      <ul class="byline">
         <li><span class="who">Meftun Akarsu</span><span class="where">Technische Hochschule Ingolstadt</span></li>
-        <li><span class="who">Christopher Mierbach</span><span class="where">Radiate</span></li>
+        <li><span class="who">Christopher Mierbach</span><span class="where">RADIAITE</span></li>
       </ul>
     </div>
 
-    <ul class="links">
-      <li><a href="https://arxiv.org/abs/2604.01733">arXiv</a></li>
-      <li><a href="https://arxiv.org/pdf/2604.01733">PDF</a></li>
-      <li><a href="https://github.com/mftnakrsu/rag-research-paper">Code</a></li>
-      <li><a href="https://huggingface.co/datasets/G4KMU/t2-ragbench">Dataset</a></li>
-      <li><a href="https://doi.org/10.5281/zenodo.19382814">Archive DOI</a></li>
-    </ul>
+    <div class="spec">
+      <dl>
+        <div class="spec-row"><dt>Benchmark</dt><dd>T²-RAGBench</dd></div>
+        <div class="spec-row"><dt>Queries</dt><dd>23,088</dd></div>
+        <div class="spec-row"><dt>Documents</dt><dd>7,318</dd></div>
+        <div class="spec-row"><dt>Strategies compared</dt><dd>10</dd></div>
+      </dl>
+      <p class="note">Financial QA over documents that mix narrative text with numerical tables — the setting where retrieval usually breaks.</p>
+    </div>
   </div>
 </header>
 
@@ -356,161 +477,207 @@ footer p{margin:0 0 .6rem}
 
 <section>
   <div class="wrap">
-    <div class="section-head">
-      <p class="eyebrow">Ranked by Recall@5</p>
-      <h2>What actually retrieves best</h2>
-      <p>Nine strategies over the full T²-RAGBench test set: 23,088 queries, 7,318 documents of mixed text and tables. Bar colour is the retrieval signal each method uses.</p>
+    <div class="rule-head">
+      <span class="num">01</span>
+      <span class="label">The ranking</span>
+      <span class="aside">Ranked by Recall@5</span>
     </div>
+
+    <h2>What actually retrieves best</h2>
+    <p class="lede">Nine strategies over the full T²-RAGBench test set. Bar colour is the retrieval signal each method uses — lexical, semantic, both fused, or query-side.</p>
 
     <div class="board">
       <div class="row lead">
         <span class="rank">01</span>
         <span class="name">Hybrid + Cohere Rerank<span class="fam">Fusion + cross-encoder</span></span>
-        <span class="score">.816</span>
         <span class="bar f-fusion" style="--w:81.6%;--d:.05s"><i></i></span>
+        <span class="score">.816</span>
       </div>
       <div class="row">
         <span class="rank">02</span>
         <span class="name">Contextual Hybrid<span class="fam">Index augmentation + fusion</span></span>
-        <span class="score">.717</span>
         <span class="bar f-fusion" style="--w:71.7%;--d:.12s"><i></i></span>
+        <span class="score">.717</span>
       </div>
       <div class="row">
         <span class="rank">03</span>
         <span class="name">Hybrid RRF<span class="fam">Fusion</span></span>
-        <span class="score">.695</span>
         <span class="bar f-fusion" style="--w:69.5%;--d:.19s"><i></i></span>
+        <span class="score">.695</span>
       </div>
       <div class="row">
         <span class="rank">04</span>
         <span class="name">CRAG<span class="fam">Adaptive</span></span>
-        <span class="score">.658</span>
         <span class="bar f-other" style="--w:65.8%;--d:.26s"><i></i></span>
+        <span class="score">.658</span>
       </div>
       <div class="row upset">
         <span class="rank">05</span>
-        <span class="name">BM25<span class="fam">Sparse · lexical</span></span>
-        <span class="score">.644</span>
+        <span class="name"><span class="circled">BM25<svg class="pen-loop" viewBox="0 0 128 60" preserveAspectRatio="none" aria-hidden="true"><path vector-effect="non-scaling-stroke" d="M118 13 C96 5, 44 3, 20 8 C6 12, 2 24, 5 35 C9 48, 38 55, 76 55 C104 55, 118 48, 121 39 C123 32, 120 27, 111 24"/></svg></span><span class="fam">Sparse · lexical</span></span>
         <span class="bar f-sparse" style="--w:64.4%;--d:.33s"><i></i></span>
-        <span class="note">↓ A 1994 lexical ranker, three places above 2026 dense retrieval</span>
+        <span class="score">.644</span>
+        <span class="note">A 1994 lexical ranker, three places above 2026 dense retrieval.</span>
       </div>
       <div class="row">
         <span class="rank">06</span>
         <span class="name">Multi-Query + RRF<span class="fam">Query expansion</span></span>
-        <span class="score">.640</span>
         <span class="bar f-other" style="--w:64.0%;--d:.40s"><i></i></span>
+        <span class="score">.640</span>
       </div>
       <div class="row">
         <span class="rank">07</span>
         <span class="name">Contextual Dense<span class="fam">Index augmentation</span></span>
-        <span class="score">.615</span>
         <span class="bar f-dense" style="--w:61.5%;--d:.47s"><i></i></span>
+        <span class="score">.615</span>
       </div>
       <div class="row">
         <span class="rank">08</span>
         <span class="name">Dense — text-embedding-3-large<span class="fam">Dense · semantic</span></span>
-        <span class="score">.587</span>
         <span class="bar f-dense" style="--w:58.7%;--d:.54s"><i></i></span>
+        <span class="score">.587</span>
       </div>
       <div class="row">
         <span class="rank">09</span>
         <span class="name">HyDE<span class="fam">Query expansion</span></span>
-        <span class="score">.544</span>
         <span class="bar f-other" style="--w:54.4%;--d:.61s"><i></i></span>
+        <span class="score">.544</span>
       </div>
     </div>
 
     <ul class="legend">
-      <li><span class="sw s"></span> Lexical signal</li>
-      <li><span class="sw d"></span> Semantic signal</li>
-      <li><span class="sw f"></span> Both, fused</li>
-      <li><span class="sw o"></span> Query-side or adaptive</li>
+      <li><span class="sw f-sparse"></span> Lexical signal</li>
+      <li><span class="sw f-dense"></span> Semantic signal</li>
+      <li><span class="sw f-fusion"></span> Both, fused</li>
+      <li><span class="sw f-other"></span> Query-side or adaptive</li>
     </ul>
 
     <p class="board-note">A tenth strategy, convex-combination fusion at α = 0.5, reaches .726 and is evaluated in the fusion ablation rather than the main table. All pairwise differences between adjacent methods are significant at p &lt; 0.001, paired bootstrap with B = 10,000 and Bonferroni correction.</p>
   </div>
 </section>
 
-<section>
+<section class="band-alt">
   <div class="wrap">
+    <div class="rule-head">
+      <span class="num">02</span>
+      <span class="label">The findings</span>
+      <span class="aside">Three results</span>
+    </div>
+
     <div class="findings">
       <div class="finding">
-        <span class="stat">+17.2 pp MRR@3</span>
-        <h3>Reranking is the single most impactful stage</h3>
-        <p>Adding a cross-encoder to hybrid retrieval moves Recall@5 from .695 to .816 and MRR@3 from .433 to .605. Nothing else in the study comes close, and at 300K tokens per minute the full 23K-query benchmark reranks in about an hour.</p>
+        <span class="tab">Finding 01</span>
+        <div class="card">
+          <span class="stat">+17.2 pp</span>
+          <h3>Reranking is the single most impactful stage</h3>
+          <p>Adding a cross-encoder to hybrid retrieval moves Recall@5 from .695 to .816 and MRR@3 from .433 to .605. Nothing else in the study comes close, and at 300K tokens per minute the full 23K-query benchmark reranks in about an hour.</p>
+        </div>
       </div>
       <div class="finding">
-        <span class="stat">BM25 &gt; dense on 9 of 10 metrics</span>
-        <h3>Lexical matching is not obsolete here</h3>
-        <p>Financial documents carry company names, ticker symbols and standardised metric labels verbatim in both query and document. Dense retrieval only draws level at Recall@20. Rank your benchmarks on your own domain — MTEB and BEIR do not predict this.</p>
+        <span class="tab">Finding 02</span>
+        <div class="card">
+          <span class="stat">9 of 10 metrics</span>
+          <h3>Lexical matching is not obsolete here</h3>
+          <p>Financial documents carry company names, ticker symbols and standardised metric labels verbatim in both query and document. Dense retrieval only draws level at Recall@20. Rank your benchmarks on your own domain — MTEB and BEIR do not predict this.</p>
+        </div>
       </div>
       <div class="finding">
-        <span class="stat">73% of failures</span>
-        <h3>Tables, not text, are what break retrieval</h3>
-        <p>Of 100 sampled failures, 73 are table structure mismatches: the answer sits in a markdown table whose rows and headers do not embed as continuous text. A further 20 need arithmetic rather than lookup.</p>
+        <span class="tab">Finding 03</span>
+        <div class="card">
+          <span class="stat">73% of failures</span>
+          <h3>Tables, not text, are what break retrieval</h3>
+          <p>Of 100 sampled failures, 73 are table structure mismatches: the answer sits in a markdown table whose rows and headers do not embed as continuous text. A further 20 need arithmetic rather than lookup.</p>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<section>
-  <div class="wrap narrow">
-    <div class="section-head">
-      <p class="eyebrow">Abstract</p>
-      <h2>What the paper does</h2>
+<section class="ink">
+  <div class="wrap">
+    <div class="rule-head">
+      <span class="num">03</span>
+      <span class="label">The abstract</span>
+      <span class="aside">What the paper does</span>
     </div>
-    <p>Retrieval-Augmented Generation systems critically depend on retrieval quality, yet no systematic comparison of modern retrieval methods exists for heterogeneous documents containing both text and tabular data. We benchmark ten retrieval strategies spanning sparse, dense, hybrid fusion, cross-encoder reranking, query expansion, index augmentation and adaptive retrieval on a challenging financial QA benchmark of 23,088 queries over 7,318 documents with mixed text-and-table content.</p>
-    <p>We evaluate retrieval quality via Recall@<i>k</i>, MRR and nDCG, and end-to-end generation quality via Number Match, with paired bootstrap significance testing. Query expansion methods and adaptive retrieval provide limited benefit for precise numerical queries, while contextual retrieval yields consistent gains. We provide ablation studies on fusion methods and reranker depth, actionable cost-accuracy recommendations, and release our full benchmark code.</p>
+
+    <h2>Ten strategies, one benchmark,<br><em>and a result that does not transfer.</em></h2>
+
+    <div class="abstract">
+      <p class="aside-note">Retrieval quality sets the ceiling on everything downstream. No amount of generation capability recovers a document that was never retrieved.</p>
+      <div class="body">
+        <p>Retrieval-Augmented Generation systems critically depend on retrieval quality, yet no systematic comparison of modern retrieval methods exists for heterogeneous documents containing both text and tabular data. We benchmark ten retrieval strategies spanning sparse, dense, hybrid fusion, cross-encoder reranking, query expansion, index augmentation and adaptive retrieval on a challenging financial QA benchmark of 23,088 queries over 7,318 documents with mixed text-and-table content.</p>
+        <p>We evaluate retrieval quality via Recall@<i>k</i>, MRR and nDCG, and end-to-end generation quality via Number Match, with paired bootstrap significance testing. Query expansion methods and adaptive retrieval provide limited benefit for precise numerical queries, while contextual retrieval yields consistent gains. We provide ablation studies on fusion methods and reranker depth, actionable cost-accuracy recommendations, and release our full benchmark code.</p>
+      </div>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="section-head">
-      <p class="eyebrow">Evidence</p>
-      <h2>Figures</h2>
+    <div class="rule-head">
+      <span class="num">04</span>
+      <span class="label">The evidence</span>
+      <span class="aside">Three figures</span>
     </div>
 
     <figure>
-      <img src="assets/recall_at_k.png" alt="Recall@k curves for nine retrieval methods, k from 1 to 20. Hybrid with reranking is highest at every k, with the largest gap at small k.">
-      <figcaption><b>Recall@<i>k</i>, k = 1…20.</b> Hybrid fusion holds a consistent advantage at every depth, and the gap widens as <i>k</i> shrinks — which is where ranking precision actually matters for a RAG pipeline with a fixed context budget.</figcaption>
+      <img src="assets/recall_at_k.png" width="2218" height="1072" loading="lazy" decoding="async" alt="Recall@k curves for nine retrieval methods, k from 1 to 20. Hybrid with reranking is highest at every k, with the largest gap at small k.">
+      <figcaption>
+        <span class="fignum">Fig. 01</span>
+        <span><b>Recall@<i>k</i>, k = 1…20.</b> Hybrid fusion holds a consistent advantage at every depth, and the gap widens as <i>k</i> shrinks — which is where ranking precision actually matters for a RAG pipeline with a fixed context budget.</span>
+      </figcaption>
     </figure>
 
     <figure>
-      <img src="assets/subset_heatmap.png" alt="Heatmap of Recall@5 for each method across the ConvFinQA, FinQA and TAT-DQA subsets. TAT-DQA is consistently the lowest.">
-      <figcaption><b>Per-subset Recall@5.</b> TAT-DQA is the hardest subset for every method, at a 35.6% failure rate against 27.2% for FinQA — it leans hardest on numerical operations over complex table layouts. It is also where fusion gains the most, +8.1 pp over BM25.</figcaption>
+      <img src="assets/subset_heatmap.png" width="2232" height="1770" loading="lazy" decoding="async" alt="Heatmap of Recall@5 for each method across the ConvFinQA, FinQA and TAT-DQA subsets. TAT-DQA is consistently the lowest.">
+      <figcaption>
+        <span class="fignum">Fig. 02</span>
+        <span><b>Per-subset Recall@5.</b> TAT-DQA is the hardest subset for every method, at a 35.6% failure rate against 27.2% for FinQA — it leans hardest on numerical operations over complex table layouts. It is also where fusion gains the most, +8.1 pp over BM25.</span>
+      </figcaption>
     </figure>
 
     <figure>
-      <img src="assets/reranker_depth.png" alt="Bar chart of Recall@5 and MRR@3 against reranker candidate pool size, showing a sharp threshold at 50 candidates.">
-      <figcaption><b>Reranker candidate depth.</b> With only 20 candidates, reranking is ineffective — the relevant document is often not in the pool at all. The threshold is around 50. Returning 20 instead of 10 buys little, so the top 10 already captures most of what reranking recovers.</figcaption>
+      <img src="assets/reranker_depth.png" width="2364" height="1462" loading="lazy" decoding="async" alt="Bar chart of Recall@5 and MRR@3 against reranker candidate pool size, showing a sharp threshold at 50 candidates.">
+      <figcaption>
+        <span class="fignum">Fig. 03</span>
+        <span><b>Reranker candidate depth.</b> With only 20 candidates, reranking is ineffective — the relevant document is often not in the pool at all. The threshold is around 50. Returning 20 instead of 10 buys little, so the top 10 already captures most of what reranking recovers.</span>
+      </figcaption>
     </figure>
   </div>
 </section>
 
-<section>
+<section class="band-alt">
   <div class="wrap narrow">
-    <div class="section-head">
-      <p class="eyebrow">If you are building one of these</p>
-      <h2>Where to start</h2>
+    <div class="rule-head">
+      <span class="num">05</span>
+      <span class="label">The recommendation</span>
+      <span class="aside">Five steps</span>
     </div>
+
+    <h2>Where to start</h2>
+    <p class="lede">If you are building retrieval over documents that mix text and tables, this is the order that pays back fastest.</p>
+
     <ol class="recs">
-      <li><div><b>Start with hybrid retrieval.</b><span>BM25 and dense, fused with reciprocal rank fusion. Treat it as the minimum viable baseline rather than an optimisation.</span></div></li>
-      <li><div><b>Add a cross-encoder reranker.</b><span>The largest single improvement available, and worth its latency. Give it at least 50 candidates or it has nothing to work with.</span></div></li>
-      <li><div><b>Apply contextual retrieval at indexing time.</b><span>Prepending a generated summary to each document is a one-time cost that pays back consistently across both dense and hybrid pipelines.</span></div></li>
-      <li><div><b>Avoid HyDE for numerical or entity-centric queries.</b><span>It underperforms plain dense retrieval here. Generated pseudo-documents invent plausible but wrong figures, which pulls the query embedding away from the real answer.</span></div></li>
-      <li><div><b>Evaluate on your own domain.</b><span>MTEB and BEIR rankings did not predict retrieval performance on these documents. The one result that transfers is that you have to measure.</span></div></li>
+      <li><span class="n">01</span><div><b>Start with hybrid retrieval.</b><span>BM25 and dense, fused with reciprocal rank fusion. Treat it as the minimum viable baseline rather than an optimisation.</span></div></li>
+      <li><span class="n">02</span><div><b>Add a cross-encoder reranker.</b><span>The largest single improvement available, and worth its latency. Give it at least 50 candidates or it has nothing to work with.</span></div></li>
+      <li><span class="n">03</span><div><b>Apply contextual retrieval at indexing time.</b><span>Prepending a generated summary to each document is a one-time cost that pays back consistently across both dense and hybrid pipelines.</span></div></li>
+      <li><span class="n">04</span><div><b>Avoid HyDE for numerical or entity-centric queries.</b><span>It underperforms plain dense retrieval here. Generated pseudo-documents invent plausible but wrong figures, which pulls the query embedding away from the real answer.</span></div></li>
+      <li><span class="n">05</span><div><b>Evaluate on your own domain.</b><span>MTEB and BEIR rankings did not predict retrieval performance on these documents. The one result that transfers is that you have to measure.</span></div></li>
     </ol>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <div class="section-head">
-      <p class="eyebrow">Full results</p>
-      <h2>All methods, all metrics</h2>
-      <p>T²-RAGBench, 23,088 queries over 7,318 documents. Sorted by nDCG@10.</p>
+    <div class="rule-head">
+      <span class="num">06</span>
+      <span class="label">Full results</span>
+      <span class="aside">Ten metrics</span>
     </div>
+
+    <h2>All methods, all metrics</h2>
+    <p class="lede">T²-RAGBench, 23,088 queries over 7,318 documents. Sorted by nDCG@10.</p>
+
     <div class="scroller">
       <table>
         <thead>
@@ -539,14 +706,19 @@ footer p{margin:0 0 .6rem}
   </div>
 </section>
 
-<section>
+<section class="band-alt">
   <div class="wrap narrow">
-    <div class="section-head">
-      <p class="eyebrow">Citation</p>
-      <h2>Cite this work</h2>
+    <div class="rule-head">
+      <span class="num">07</span>
+      <span class="label">Citation</span>
+      <span class="aside">BibTeX</span>
     </div>
+
+    <h2>Cite this work</h2>
+    <p class="lede">Author order below follows the arXiv record, which is what citation managers resolve against.</p>
+
     <div class="cite">
-    <button class="copy" type="button" id="copy">Copy</button>
+      <button class="copy" type="button" id="copy">Copy</button>
 <pre id="bib">@article{akarsu2026bm25,
   title   = {From BM25 to Corrective RAG: Benchmarking Retrieval
              Strategies for Text-and-Table Documents},
@@ -564,9 +736,11 @@ footer p{margin:0 0 .6rem}
 </main>
 
 <footer>
-  <div class="wrap narrow">
-    <p>Benchmark code is released under the MIT licence at <a href="https://github.com/mftnakrsu/rag-research-paper">mftnakrsu/rag-research-paper</a>. The paper text and figures are distributed by arXiv under CC BY 4.0.</p>
-    <p>Built on <a href="https://arxiv.org/abs/2506.12071">T²-RAGBench</a> by Strich et al., EACL 2026.</p>
+  <div class="wrap">
+    <div>
+      <p>Benchmark code is released under the MIT licence at <a href="https://github.com/radiaite/rag-research-paper">radiaite/rag-research-paper</a>. The paper text and figures are distributed by arXiv under CC BY 4.0.</p>
+      <p>Built on <a href="https://arxiv.org/abs/2506.12071">T²-RAGBench</a> by Strich et al., EACL 2026.</p>
+    </div>
 
     <div class="credit">
       <span class="eyebrow">Azure AI compute provided by</span>

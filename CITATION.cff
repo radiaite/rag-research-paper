@@ -8,7 +8,7 @@ abstract: >-
   financial QA queries over 7,318 documents with mixed text-and-table content.
 type: software
 license: MIT
-repository-code: "https://github.com/mftnakrsu/rag-research-paper"
+repository-code: "https://github.com/radiaite/rag-research-paper"
 keywords:
   - retrieval-augmented generation
   - hybrid retrieval
@@ -21,7 +21,7 @@ authors:
     affiliation: Technische Hochschule Ingolstadt
   - family-names: Mierbach
     given-names: Christopher
-    affiliation: Radiate
+    affiliation: RADIAITE
   - family-names: Karaman
     given-names: Kaan
     affiliation: Technische Universität München

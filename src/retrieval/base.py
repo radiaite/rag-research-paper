@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 import numpy as np
 
@@ -71,6 +70,7 @@ class AzureOpenAIEmbedder(BaseEmbedder):
 
     def __init__(self, model: str = "text-embedding-3-large", dimensions: int = 3072):
         import os
+
         from openai import AzureOpenAI
         self.client = AzureOpenAI(
             api_key=os.getenv("AZURE_API_KEY"),

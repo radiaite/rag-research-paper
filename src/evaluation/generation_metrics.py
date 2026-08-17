@@ -131,7 +131,6 @@ def compute_generation_metrics(
     if metrics is None:
         metrics = ["number_match", "exact_match", "f1", "rouge_l", "bertscore"]
 
-    n = len(predictions)
     results: dict[str, float] = {}
 
     if "number_match" in metrics:

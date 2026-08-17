@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import sys
 from pathlib import Path
 
@@ -161,14 +160,23 @@ def main(
     logger.info(f"Index built in {index_timer.elapsed:.1f}s")
 
     # Setup reranker (lazy import)
+    #
+    # _rerank_top_k is read from the config and deliberately not used: the
+    # rerank call below passes the experiment's own top_k, and the candidate
+    # pool is fixed at max(top_k * 3, 20). So `top_n` in configs/default.yaml
+    # has no effect here. Kept, under a leading underscore, because it is the
+    # only visible trace at this call site that the config key is inert.
+    #
+    # Why this is not simply wired up, and which figure it costs us, is in
+    # CONTRIBUTING.md → "Known gaps".
     if reranker_key != "none" and reranker_key in cfg["rerankers"]:
         from src.reranking.reranker import create_reranker
         reranker = create_reranker(cfg["rerankers"][reranker_key])
-        rerank_top_k = cfg["rerankers"][reranker_key].get("top_n", top_k)
+        _rerank_top_k = cfg["rerankers"][reranker_key].get("top_n", top_k)
     else:
         from src.reranking.reranker import NoReranker
         reranker = NoReranker()
-        rerank_top_k = top_k
+        _rerank_top_k = top_k
 
     # Prepare queries
     qa_items = data.qa_items[:max_queries] if max_queries else data.qa_items
