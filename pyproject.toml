@@ -4,7 +4,19 @@ version = "0.1.0"
 description = "Comprehensive RAG retrieval methods benchmark on T²-RAGBench"
 requires-python = ">=3.11"
 license = {text = "MIT"}
-authors = [{name = "Süleyman Akarsu"}]
+readme = "README.md"
+authors = [
+    {name = "Meftun Akarsu"},
+    {name = "Christopher Mierbach"},
+    {name = "Kaan Karaman"},
+]
+keywords = [
+    "retrieval-augmented-generation",
+    "hybrid-retrieval",
+    "cross-encoder-reranking",
+    "financial-question-answering",
+    "information-retrieval",
+]
 
 dependencies = [
     # Data
@@ -51,6 +63,12 @@ dependencies = [
     "transformers>=4.44.0",
     "torch>=2.3.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/mftnakrsu/rag-research-paper"
+Paper = "https://arxiv.org/abs/2604.01733"
+Archive = "https://doi.org/10.5281/zenodo.19382814"
+Dataset = "https://huggingface.co/datasets/G4KMU/t2-ragbench"
 
 [project.optional-dependencies]
 dev = [

@@ -1,0 +1,25 @@
+# gitleaks configuration
+#
+# Extends the shipped default rules rather than replacing them — the defaults
+# already cover what this repo touches (Azure, OpenAI, Cohere, generic
+# high-entropy strings).
+#
+# Its presence also activates the RADIAITE pre-commit hook, which refuses a
+# commit containing a secret. The Secret scan workflow is the backstop: by the
+# time it reports, the credential is already pushed and has to be rotated.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Placeholders and fixtures that look like credentials and are not"
+
+paths = [
+  # Documented variable names with empty or example values.
+  '''^\.env\.example$''',
+]
+
+regexes = [
+  # Illustrative endpoint in docs, not a resource that exists.
+  '''<your-resource>''',
+]

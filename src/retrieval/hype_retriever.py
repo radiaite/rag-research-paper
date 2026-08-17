@@ -13,12 +13,11 @@ document could answer rather than the document itself.
 
 from __future__ import annotations
 
-from collections import defaultdict
+import os
 from typing import Any
 
 import faiss
 import numpy as np
-import os
 from openai import AzureOpenAI
 
 from src.retrieval.base import BaseEmbedder, BaseRetriever

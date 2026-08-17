@@ -11,10 +11,10 @@ Labels" (2022).  https://arxiv.org/abs/2212.10496
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import numpy as np
-import os
 from openai import AzureOpenAI
 
 from src.retrieval.base import BaseRetriever
