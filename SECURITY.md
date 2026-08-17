@@ -10,7 +10,7 @@ history, **do not open a public issue** — that advertises it while it is still
 live.
 
 Use GitHub's [private vulnerability
-reporting](https://github.com/mftnakrsu/rag-research-paper/security/advisories/new)
+reporting](https://github.com/radiaite/rag-research-paper/security/advisories/new)
 instead. We will rotate the credential first and answer second.
 
 Every pull request is scanned with [gitleaks](https://github.com/gitleaks/gitleaks).

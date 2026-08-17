@@ -302,7 +302,7 @@ rag_research_paper/
 
 ```bash
 # Clone
-git clone https://github.com/mftnakrsu/rag-research-paper.git
+git clone https://github.com/radiaite/rag-research-paper.git
 cd rag-research-paper
 
 # Environment

@@ -65,7 +65,7 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/mftnakrsu/rag-research-paper"
+Repository = "https://github.com/radiaite/rag-research-paper"
 Paper = "https://arxiv.org/abs/2604.01733"
 Archive = "https://doi.org/10.5281/zenodo.19382814"
 Dataset = "https://huggingface.co/datasets/G4KMU/t2-ragbench"

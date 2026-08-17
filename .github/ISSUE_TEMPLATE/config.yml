@@ -7,5 +7,5 @@ contact_links:
     url: https://huggingface.co/datasets/G4KMU/t2-ragbench
     about: T²-RAGBench is maintained by Strich et al. Dataset issues belong there, not here.
   - name: Report a leaked credential
-    url: https://github.com/mftnakrsu/rag-research-paper/security/advisories/new
+    url: https://github.com/radiaite/rag-research-paper/security/advisories/new
     about: Privately, please — a public issue advertises the key while it is still live.
