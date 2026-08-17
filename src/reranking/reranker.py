@@ -21,10 +21,7 @@ class AzureCohereReranker(BaseReranker):
         self.model = model
         self.top_n = top_n
         self.api_key = os.getenv("AZURE_API_KEY")
-        self.endpoint = (
-            f"{os.getenv('AZURE_LLM_ENDPOINT', 'https://aif-meftun-academic-work.services.ai.azure.com')}"
-            f"/providers/cohere/v2/rerank"
-        )
+        self.endpoint = f"{os.environ['AZURE_LLM_ENDPOINT']}/providers/cohere/v2/rerank"
 
     def rerank(
         self, query: str, documents: list[RetrievedDoc], top_k: int = 5
@@ -112,7 +109,9 @@ def create_reranker(config: dict) -> BaseReranker:
     if provider == "none":
         return NoReranker()
     elif provider in ("cohere", "azure_cohere"):
-        return AzureCohereReranker(config.get("model", "Cohere-rerank-v4.0-pro"), config.get("top_n", 10))
+        return AzureCohereReranker(
+            config.get("model", "Cohere-rerank-v4.0-pro"), config.get("top_n", 10)
+        )
     elif provider == "local":
         return LocalCrossEncoderReranker(config.get("model", "BAAI/bge-reranker-v2-m3"))
     else:

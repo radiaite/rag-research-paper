@@ -12,10 +12,10 @@ and individual Rank Learning Methods" (SIGIR 2009).
 
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from typing import Any
 
-import os
 from openai import AzureOpenAI
 
 from src.retrieval.base import BaseRetriever

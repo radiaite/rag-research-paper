@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from src.utils.common import RetrievedDoc, Timer, get_logger
+from src.utils.common import RetrievedDoc, get_logger
 
 logger = get_logger(__name__)
 
@@ -29,6 +29,7 @@ class Generator:
         prompt_template: str = DEFAULT_PROMPT,
     ):
         import os
+
         from openai import AzureOpenAI
         self.client = AzureOpenAI(
             api_key=os.getenv("AZURE_API_KEY"),

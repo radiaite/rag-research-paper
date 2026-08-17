@@ -7,12 +7,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.data_loader import load_t2ragbench, save_corpus_texts, save_queries
 from src.chunking import chunk_corpus
-from src.retrieval.bm25_retriever import BM25Retriever
+from src.data_loader import load_t2ragbench, save_corpus_texts, save_queries
+from src.evaluation.generation_metrics import exact_match, number_match, token_f1
 from src.evaluation.retrieval_metrics import compute_retrieval_metrics
-from src.evaluation.generation_metrics import number_match, exact_match, token_f1
-from src.utils.common import set_seed, get_logger, Timer
+from src.retrieval.bm25_retriever import BM25Retriever
+from src.utils.common import Timer, get_logger, set_seed
 
 logger = get_logger(__name__)
 
@@ -140,7 +140,9 @@ def main():
             continue
         subset_retrieved = [all_retrieved[i] for i in subset_indices]
         subset_relevant = [relevant_ids[i] for i in subset_indices]
-        subset_metrics = compute_retrieval_metrics(subset_retrieved, subset_relevant, k_values=[3, 5, 10])
+        subset_metrics = compute_retrieval_metrics(
+            subset_retrieved, subset_relevant, k_values=[3, 5, 10]
+        )
         logger.info(f"\n  {subset_name} ({len(subset_indices)} queries):")
         for name in ["recall@3", "recall@5", "recall@10", "mrr@3"]:
             if name in subset_metrics:

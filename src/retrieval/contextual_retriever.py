@@ -15,9 +15,9 @@ https://www.anthropic.com/news/contextual-retrieval
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
-import os
 from openai import AzureOpenAI
 
 from src.retrieval.base import BaseEmbedder, BaseRetriever

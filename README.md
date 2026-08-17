@@ -6,7 +6,7 @@
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.19382814-blue.svg)](https://doi.org/10.5281/zenodo.19382814)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Authors:** Meftun Akarsu (Technische Hochschule Ingolstadt) · Christopher Mierbach (Radiate) · Kaan Karaman (Technische Universität München)
+**Authors:** Meftun Akarsu (Technische Hochschule Ingolstadt) · Christopher Mierbach (RADIAITE) · Kaan Karaman (Technische Universität München)
 
 **Paper:** [arXiv:2604.01733](https://arxiv.org/abs/2604.01733) · [LaTeX source](paper/main.tex) — **Code & data archive:** [10.5281/zenodo.19382814](https://doi.org/10.5281/zenodo.19382814) — **Dataset:** [T2-RAGBench on HuggingFace](https://huggingface.co/datasets/G4KMU/t2-ragbench)
 
@@ -122,10 +122,10 @@ The table below presents retrieval performance of all evaluated methods on the f
 | Single-method | BM25 (sparse) | 0.293 | 0.552 | 0.644 | 0.735 | 0.411 | 0.515 | 0.449 |
 | Single-method | Dense (text-embed-3-large) | 0.248 | 0.481 | 0.587 | 0.703 | 0.351 | 0.466 | 0.398 |
 | Query expansion | HyDE (gpt-4.1-mini) | 0.221 | 0.441 | 0.544 | 0.671 | 0.318 | 0.433 | 0.365 |
-| Query expansion | Multi-Query + RRF | 0.240 | 0.477 | 0.640 | 0.734 | 0.397 | 0.506 | --- |
-| Index augment. | Contextual Dense | 0.264 | 0.504 | 0.615 | 0.729 | 0.373 | 0.490 | --- |
-| Index augment. | Contextual Hybrid | 0.320 | 0.606 | 0.717 | 0.821 | 0.454 | 0.571 | --- |
-| Adaptive | CRAG (gpt-4.1-mini) | 0.282 | 0.529 | 0.658 | 0.788 | 0.415 | 0.536 | --- |
+| Query expansion | Multi-Query + RRF | 0.283 | 0.539 | 0.640 | 0.734 | 0.397 | 0.506 | 0.439 |
+| Index augment. | Contextual Dense | 0.266 | 0.508 | 0.615 | 0.732 | 0.373 | 0.490 | 0.420 |
+| Index augment. | Contextual Hybrid | 0.327 | 0.610 | 0.717 | 0.818 | 0.454 | 0.571 | 0.497 |
+| Adaptive | CRAG (gpt-4.1-mini) | 0.302 | 0.556 | 0.658 | 0.788 | 0.415 | 0.536 | 0.456 |
 | Fusion | Hybrid (BM25+Dense, RRF) | 0.308 | 0.588 | 0.695 | 0.801 | 0.433 | 0.551 | 0.477 |
 | Fusion | **Hybrid + Cohere Rerank** | **0.472** | **0.758** | **0.816** | **0.861** | **0.605** | **0.683** | **0.625** |
 
@@ -154,7 +154,7 @@ Among first-stage retrievers, **BM25 outperforms dense retrieval** (text-embeddi
 | FinQA | **Hybrid** | **0.737** | **0.856** | **0.389** |
 | ConvFinQA | BM25 | 0.696 | 0.781 | 0.500 |
 | ConvFinQA | Dense | 0.654 | 0.781 | 0.410 |
-| ConvFinQA | **Hybrid** | **0.755** | **0.851** | **0.519** |
+| ConvFinQA | **Hybrid** | **0.754** | **0.850** | **0.519** |
 | TAT-DQA | BM25 | 0.566 | 0.649 | 0.400 |
 | TAT-DQA | Dense | 0.549 | 0.647 | 0.364 |
 | TAT-DQA | **Hybrid** | **0.647** | **0.746** | **0.438** |
@@ -310,9 +310,12 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
 
-# Configure API keys
+# Configure credentials
 cp .env.example .env
-# Edit .env with your Azure/OpenAI keys
+# Fill in AZURE_API_KEY, AZURE_LLM_ENDPOINT and AZURE_EMBED_ENDPOINT.
+# Everything runs through one Azure AI Foundry resource — embeddings and
+# generation via Azure OpenAI, reranking via the Cohere serverless endpoint.
+# .env is gitignored; a pre-commit hook and CI both scan for leaked keys.
 
 # Sanity check (downloads data + runs BM25 on 100 queries)
 python scripts/sanity_check.py
@@ -348,6 +351,15 @@ python scripts/run_all_experiments.py --tier 1
 
 Author order follows the arXiv record. The code and data archive is deposited separately under [10.5281/zenodo.19382814](https://doi.org/10.5281/zenodo.19382814).
 
+## Contributing
+
+Reproduction reports are the most useful thing you can file here — including the
+ones where a number did not come out the same. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for how to run the benchmark and what kinds
+of change are possible; [SECURITY.md](SECURITY.md) for reporting a leaked
+credential privately. Participation is covered by the
+[Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## License
 
 The code in this repository is released under the [MIT License](LICENSE).
@@ -358,6 +370,6 @@ reuse the code under MIT, the paper text under CC BY 4.0 with attribution.
 
 ## Acknowledgments
 
-We thank Christopher Mierbach and [Radiate](https://radiaite.com) for providing Azure AI compute credits.
+We thank Christopher Mierbach and [RADIAITE](https://radiaite.com) for providing Azure AI compute credits.
 
 This work builds on [T2-RAGBench](https://arxiv.org/abs/2506.12071) by Strich et al. (EACL 2026).

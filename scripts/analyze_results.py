@@ -68,7 +68,11 @@ def per_subset_table(results: list[dict]) -> pd.DataFrame:
             for metric in ["recall@3", "recall@5", "recall@10", "mrr@3", "ndcg@10"]:
                 if metric in subset_df.columns:
                     row[metric] = subset_df[metric].mean()
-            row["avg_latency_ms"] = subset_df["latency_ms"].mean() if "latency_ms" in subset_df.columns else None
+            row["avg_latency_ms"] = (
+                subset_df["latency_ms"].mean()
+                if "latency_ms" in subset_df.columns
+                else None
+            )
             rows.append(row)
 
     return pd.DataFrame(rows)

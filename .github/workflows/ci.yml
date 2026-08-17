@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Lint and metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # No setup-python: ruff ships as a self-contained wheel, and the runner's
+      # python3 is already new enough for tomllib. Nothing here needs the
+      # runtime dependencies — installing torch, faiss and ragatouille would
+      # cost several GB and still not run the benchmark, which needs Azure
+      # credentials this workflow does not have.
+      - name: Install tools
+        # Pinned: an upstream ruff release should not redden CI on its own.
+        run: pip install "ruff>=0.14,<0.15" cffconvert
+
+      - name: ruff check
+        run: ruff check --output-format=github .
+
+      - name: pyproject.toml parses
+        run: python3 -c "import tomllib; tomllib.load(open('pyproject.toml','rb'))"
+
+      # CITATION.cff is what GitHub's "Cite this repository" button reads. A
+      # malformed file makes the button disappear silently.
+      - name: CITATION.cff is valid
+        run: cffconvert --validate
+
+      # The published results are quoted in five places: paper/main.tex, the
+      # README table, the project page's results table and leaderboard, and a
+      # constant in the figure script. They have drifted before — this asserts
+      # the manuscript still wins, and that each <img> states its real size.
+      - name: Project page agrees with the manuscript
+        run: python3 scripts/generate_web_figures.py --check
