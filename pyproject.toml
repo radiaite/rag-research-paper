@@ -5,6 +5,7 @@ description = "Retrieval benchmark on T²-RAGBench, from BM25 to corrective RAG 
 requires-python = ">=3.11,<3.13"
 license = "MIT"
 license-files = ["LICENSE"]
+readme = "README.md"
 authors = [{ name = "Meftun Akarsu" }, { name = "Christopher Mierbach" }, { name = "Recep Kaan Karaman" }]
 keywords = ["retrieval", "rag", "benchmark", "dense-retrieval", "bm25", "tables", "financial-qa"]
 classifiers = [
@@ -40,6 +41,12 @@ dependencies = [
     "tqdm>=4.66.0",
     "voyageai>=0.3.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/radiaite/rag-research-paper"
+Paper = "https://arxiv.org/abs/2604.01733"
+Archive = "https://doi.org/10.5281/zenodo.19382814"
+Dataset = "https://huggingface.co/datasets/G4KMU/t2-ragbench"
 
 [project.scripts]
 rag-experiment = "scripts.run_experiment:main"
@@ -77,6 +84,10 @@ extend-exclude = ["exp/01_encode.ipynb", "exp/envs"]
 select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PIE", "PTH", "NPY", "PERF", "RUF"]
 ignore = ["E501"]
 allowed-confusables = ["α", "×"]
+
+[tool.ruff.lint.per-file-ignores]
+# Upstream project-page script (radiaite); stdlib-only os.path style kept as written there.
+"scripts/generate_web_figures.py" = ["PTH", "B905", "RUF003"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src", "scripts"]

@@ -1,0 +1,49 @@
+name: Reproduction report
+description: A number from the paper did not come out the same way for you
+labels: ["reproduction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This is the most useful issue you can file here. Please include the
+        command you ran — a result we cannot re-run is hard to act on.
+
+  - type: input
+    id: metric
+    attributes:
+      label: Which number
+      description: The metric and method, as reported in the paper or README.
+      placeholder: "Hybrid + Cohere Rerank, Recall@5 = 0.816"
+    validations:
+      required: true
+
+  - type: input
+    id: got
+    attributes:
+      label: What you got instead
+      placeholder: "0.781"
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: The command you ran
+      render: shell
+      placeholder: python scripts/run_experiment.py --method hybrid --reranker cohere
+    validations:
+      required: true
+
+  - type: textarea
+    id: setup
+    attributes:
+      label: Setup
+      description: Python version, OS, and which embedding/chat deployments you pointed at.
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else
+      description: Config changes, a subset rather than the full set, partial runs.

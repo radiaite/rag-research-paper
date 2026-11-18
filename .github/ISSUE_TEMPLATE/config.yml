@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question about the paper
+    url: https://arxiv.org/abs/2604.01733
+    about: For questions about the method or the findings rather than the code, the paper is the fuller answer.
+  - name: The dataset
+    url: https://huggingface.co/datasets/G4KMU/t2-ragbench
+    about: T²-RAGBench is maintained by Strich et al. Dataset issues belong there, not here.
+  - name: Report a leaked credential
+    url: https://github.com/radiaite/rag-research-paper/security/advisories/new
+    about: Privately, please — a public issue advertises the key while it is still live.
