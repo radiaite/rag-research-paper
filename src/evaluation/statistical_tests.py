@@ -1,7 +1,5 @@
 """Statistical significance tests for comparing retrieval methods."""
 
-from __future__ import annotations
-
 import numpy as np
 from scipy import stats
 
@@ -12,13 +10,7 @@ def paired_bootstrap_test(
     n_resamples: int = 10000,
     seed: int = 42,
 ) -> dict[str, float]:
-    """Paired bootstrap hypothesis test.
-
-    Tests H0: mean(scores_a) == mean(scores_b).
-
-    Returns:
-        Dict with p_value, mean_diff, ci_lower, ci_upper (95% CI).
-    """
+    """Paired bootstrap hypothesis test."""
     rng = np.random.RandomState(seed)
     a = np.array(scores_a)
     b = np.array(scores_b)
@@ -51,9 +43,7 @@ def paired_bootstrap_test(
     }
 
 
-def paired_t_test(
-    scores_a: list[float], scores_b: list[float]
-) -> dict[str, float]:
+def paired_t_test(scores_a: list[float], scores_b: list[float]) -> dict[str, float]:
     """Paired t-test for two systems."""
     t_stat, p_value = stats.ttest_rel(scores_a, scores_b)
     diff = np.array(scores_a) - np.array(scores_b)
@@ -85,15 +75,7 @@ def significance_matrix(
     test: str = "bootstrap",
     n_resamples: int = 10000,
 ) -> dict[str, dict[str, dict]]:
-    """Compute pairwise significance tests between all methods.
-
-    Args:
-        method_scores: method_name -> per_query_scores
-        test: "bootstrap" or "t_test"
-
-    Returns:
-        Nested dict: method_a -> method_b -> test results
-    """
+    """Compute pairwise significance tests between all methods."""
     methods = list(method_scores.keys())
     results = {}
 
@@ -103,9 +85,7 @@ def significance_matrix(
             if i >= j:
                 continue
             if test == "bootstrap":
-                r = paired_bootstrap_test(
-                    method_scores[a], method_scores[b], n_resamples
-                )
+                r = paired_bootstrap_test(method_scores[a], method_scores[b], n_resamples)
             else:
                 r = paired_t_test(method_scores[a], method_scores[b])
             results[a][b] = r

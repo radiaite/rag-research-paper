@@ -1,79 +1,92 @@
 [project]
 name = "rag-retrieval-benchmark"
 version = "0.1.0"
-description = "Comprehensive RAG retrieval methods benchmark on T²-RAGBench"
-requires-python = ">=3.11"
-license = {text = "MIT"}
-authors = [{name = "Anonymous"}]
-
+description = "Retrieval benchmark on T²-RAGBench, from BM25 to corrective RAG over financial text and table documents."
+requires-python = ">=3.11,<3.13"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Meftun Akarsu" }, { name = "Christopher Mierbach" }, { name = "Recep Kaan Karaman" }]
+keywords = ["retrieval", "rag", "benchmark", "dense-retrieval", "bm25", "tables", "financial-qa"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Text Processing :: Indexing",
+    "Private :: Do Not Upload",
+]
 dependencies = [
-    # Data
-    "datasets>=3.0.0",
-    "pandas>=2.2.0",
-    "pyarrow>=17.0.0",
-
-    # Sparse Retrieval
-    "rank-bm25>=0.2.2",
-
-    # Dense Retrieval
-    "faiss-cpu>=1.8.0",
-    "sentence-transformers>=3.0.0",
-    "numpy>=1.26.0,<2.0.0",
-
-    # ColBERT
-    "ragatouille>=0.0.9",
-
-    # API Clients
-    "openai>=1.40.0",
-    "cohere>=5.0.0",
-    "voyageai>=0.3.0",
-
-    # Reranking
-    "flashrank>=0.2.0",
-
-    # Generation & Evaluation
-    "rouge-score>=0.1.2",
     "bert-score>=0.3.13",
-    "ragas>=0.2.0",
-    "nltk>=3.9.0",
-    "evaluate>=0.4.0",
-    "scipy>=1.13.0",
-
-    # Config & Utils
-    "pyyaml>=6.0.0",
-    "python-dotenv>=1.0.0",
-    "tqdm>=4.66.0",
-    "rich>=13.7.0",
     "click>=8.1.0",
-
-    # Tokenization
-    "tiktoken>=0.7.0",
-    "transformers>=4.44.0",
-    "torch>=2.3.0",
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "ruff>=0.5.0",
-    "ipykernel>=6.29.0",
-    "jupyter>=1.0.0",
+    "cohere>=5.0.0",
+    "datasets>=3.0.0",
+    "faiss-cpu>=1.8.0",
     "matplotlib>=3.9.0",
-    "seaborn>=0.13.0",
+    "nltk>=3.9.0",
+    "numpy>=1.26.0,<2.0.0",
+    "openai>=1.40.0",
+    "pandas>=2.2.0",
+    "python-dotenv>=1.0.0",
+    "pyyaml>=6.0.0",
+    "ragatouille>=0.0.9,<0.0.10",
+    "rank-bm25>=0.2.2",
+    "requests>=2.32.0",
+    "rouge-score>=0.1.2",
+    "scipy>=1.13.0",
+    "sentence-transformers>=3.0.0",
+    "torch>=2.3.0",
+    "tqdm>=4.66.0",
+    "voyageai>=0.3.0",
 ]
-graph = [
-    "lightrag-hku>=0.1.0",
-    "networkx>=3.3",
-    "graspologic>=3.4.0",
+
+[project.scripts]
+rag-experiment = "scripts.run_experiment:main"
+rag-sanity = "scripts.sanity_check:main"
+rag-colbert = "scripts.run_colbertv2:main"
+rag-aggregate = "scripts.aggregate_bge_m3:main"
+rag-stats = "scripts.bge_m3_stats:main"
+rag-figures = "scripts.generate_figures:main"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "pytest>=9.2.0",
+    "ruff>=0.17.5",
+    "ty>=0.0.105",
 ]
+
+[build-system]
+requires = ["uv_build>=0.13.4,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv]
+constraint-dependencies = ["pyarrow<24"]
+
+[tool.uv.build-backend]
+module-name = ["src", "scripts"]
+module-root = ""
 
 [tool.ruff]
 line-length = 100
-target-version = "py311"
+src = [".", "exp"]
+extend-exclude = ["exp/01_encode.ipynb", "exp/envs"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "W"]
+select = ["E", "W", "F", "I", "UP", "B", "C4", "SIM", "PIE", "PTH", "NPY", "PERF", "RUF"]
+ignore = ["E501"]
+allowed-confusables = ["α", "×"]
 
-[tool.pytest.ini_options]
-testpaths = ["tests"]
+[tool.ruff.lint.isort]
+known-first-party = ["src", "scripts"]
+
+[tool.ruff.format]
+docstring-code-format = true
+
+[tool.ty.environment]
+extra-paths = ["exp"]
+
+[tool.ty.src]
+include = ["src", "scripts", "exp"]
+exclude = ["exp/01_encode.ipynb", "exp/envs"]

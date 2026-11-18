@@ -1,7 +1,5 @@
 """Reranker implementations: Azure Cohere, local cross-encoder, FlashRank."""
 
-from __future__ import annotations
-
 import os
 
 import requests
@@ -49,14 +47,16 @@ class AzureCohereReranker(BaseReranker):
         for rank, result in enumerate(data["results"]):
             idx = result["index"]
             orig = documents[idx]
-            reranked.append(RetrievedDoc(
-                doc_id=orig.doc_id,
-                text=orig.text,
-                score=result["relevance_score"],
-                rank=rank,
-                method=f"{orig.method}+cohere_rerank",
-                metadata={**orig.metadata, "rerank_score": result["relevance_score"]},
-            ))
+            reranked.append(
+                RetrievedDoc(
+                    doc_id=orig.doc_id,
+                    text=orig.text,
+                    score=result["relevance_score"],
+                    rank=rank,
+                    method=f"{orig.method}+cohere_rerank",
+                    metadata={**orig.metadata, "rerank_score": result["relevance_score"]},
+                )
+            )
         return reranked
 
 
@@ -65,15 +65,21 @@ class LocalCrossEncoderReranker(BaseReranker):
 
     name = "cross_encoder"
 
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3",
-                 max_length: int = 512, batch_size: int = 8):
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-reranker-v2-m3",
+        max_length: int = 512,
+        batch_size: int = 8,
+    ):
         from sentence_transformers import CrossEncoder
+
         self.model = CrossEncoder(model_name, max_length=max_length)
         self.name = model_name.split("/")[-1]
 
         # MPS hits buffer-size errors above ~8 on long financial docs.
         try:
             import torch
+
             on_cuda = torch.cuda.is_available()
         except ImportError:
             on_cuda = False
@@ -91,22 +97,24 @@ class LocalCrossEncoderReranker(BaseReranker):
         if not documents:
             return []
 
-        pairs = [[query, d.text[:4096]] for d in documents]
+        pairs = [(query, d.text[:4096]) for d in documents]
         scores = self.model.predict(pairs, batch_size=self.batch_size, show_progress_bar=False)
 
-        scored = list(zip(documents, scores))
+        scored = list(zip(documents, scores, strict=True))
         scored.sort(key=lambda x: x[1], reverse=True)
 
         reranked = []
         for rank, (doc, score) in enumerate(scored[:top_k]):
-            reranked.append(RetrievedDoc(
-                doc_id=doc.doc_id,
-                text=doc.text,
-                score=float(score),
-                rank=rank,
-                method=f"{doc.method}+{self.name}",
-                metadata={**doc.metadata, "rerank_score": float(score)},
-            ))
+            reranked.append(
+                RetrievedDoc(
+                    doc_id=doc.doc_id,
+                    text=doc.text,
+                    score=float(score),
+                    rank=rank,
+                    method=f"{doc.method}+{self.name}",
+                    metadata={**doc.metadata, "rerank_score": float(score)},
+                )
+            )
         return reranked
 
 

@@ -1,7 +1,5 @@
 """Generation evaluation metrics: Number Match, EM, F1, ROUGE-L, BERTScore."""
 
-from __future__ import annotations
-
 import re
 import string
 from collections import Counter
@@ -40,13 +38,7 @@ def _relative_close(a: float, b: float, epsilon: float = 1e-2) -> bool:
 
 
 def number_match(prediction: str, gold: str, epsilon: float = 1e-2) -> float:
-    """Number Match metric from T²-RAGBench (relative tolerance, scale-invariant).
-
-    Handles percentage/decimal mismatches: e.g., pred=53 vs gold=0.53 (53%)
-    by testing multiple scale factors {1, 100, 0.01}.
-
-    Returns 1.0 if numbers match within relative tolerance, 0.0 otherwise.
-    """
+    """Number Match metric from T²-RAGBench (relative tolerance, scale-invariant)."""
     pred_num = extract_number(prediction)
     gold_num = extract_number(gold)
 
@@ -95,6 +87,7 @@ def token_f1(prediction: str, gold: str) -> float:
 def compute_rouge_l(prediction: str, gold: str) -> float:
     """ROUGE-L F1 score."""
     from rouge_score import rouge_scorer
+
     scorer = rouge_scorer.RougeScorer(["rougeL"], use_stemmer=True)
     scores = scorer.score(gold, prediction)
     return scores["rougeL"].fmeasure
@@ -103,6 +96,7 @@ def compute_rouge_l(prediction: str, gold: str) -> float:
 def compute_bertscore(predictions: list[str], golds: list[str]) -> list[float]:
     """BERTScore F1 for a batch of predictions."""
     from bert_score import score as bert_score
+
     _, _, f1 = bert_score(predictions, golds, lang="en", verbose=False)
     return f1.tolist()
 
@@ -112,36 +106,27 @@ def compute_generation_metrics(
     golds: list[str],
     metrics: list[str] | None = None,
 ) -> dict[str, float]:
-    """Compute all generation metrics averaged over samples.
-
-    Args:
-        predictions: Predicted answers.
-        golds: Gold answers.
-        metrics: Which metrics to compute. Default: all.
-
-    Returns:
-        Dict of metric_name -> averaged value.
-    """
+    """Compute all generation metrics averaged over samples."""
     if metrics is None:
         metrics = ["number_match", "exact_match", "f1", "rouge_l", "bertscore"]
 
-    n = len(predictions)
+    len(predictions)
     results: dict[str, float] = {}
 
     if "number_match" in metrics:
-        scores = [number_match(p, g) for p, g in zip(predictions, golds)]
+        scores = [number_match(p, g) for p, g in zip(predictions, golds, strict=True)]
         results["number_match"] = float(np.mean(scores))
 
     if "exact_match" in metrics:
-        scores = [exact_match(p, g) for p, g in zip(predictions, golds)]
+        scores = [exact_match(p, g) for p, g in zip(predictions, golds, strict=True)]
         results["exact_match"] = float(np.mean(scores))
 
     if "f1" in metrics:
-        scores = [token_f1(p, g) for p, g in zip(predictions, golds)]
+        scores = [token_f1(p, g) for p, g in zip(predictions, golds, strict=True)]
         results["f1"] = float(np.mean(scores))
 
     if "rouge_l" in metrics:
-        scores = [compute_rouge_l(p, g) for p, g in zip(predictions, golds)]
+        scores = [compute_rouge_l(p, g) for p, g in zip(predictions, golds, strict=True)]
         results["rouge_l"] = float(np.mean(scores))
 
     if "bertscore" in metrics:
@@ -151,9 +136,7 @@ def compute_generation_metrics(
     return results
 
 
-def compute_per_sample_generation(
-    prediction: str, gold: str
-) -> dict[str, float]:
+def compute_per_sample_generation(prediction: str, gold: str) -> dict[str, float]:
     """Compute generation metrics for a single sample (no BERTScore)."""
     return {
         "number_match": number_match(prediction, gold),

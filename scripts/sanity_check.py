@@ -1,18 +1,11 @@
 """Sanity check: download data, run BM25 on 100 queries, verify pipeline."""
 
-from __future__ import annotations
-
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.data_loader import load_t2ragbench, save_corpus_texts, save_queries
 from src.chunking import chunk_corpus
-from src.retrieval.bm25_retriever import BM25Retriever
+from src.data_loader import load_t2ragbench, save_corpus_texts, save_queries
+from src.evaluation.generation_metrics import exact_match, number_match, token_f1
 from src.evaluation.retrieval_metrics import compute_retrieval_metrics
-from src.evaluation.generation_metrics import number_match, exact_match, token_f1
-from src.utils.common import set_seed, get_logger, Timer
+from src.retrieval.bm25_retriever import BM25Retriever
+from src.utils.common import Timer, get_logger, set_seed
 
 logger = get_logger(__name__)
 
@@ -39,9 +32,7 @@ def main():
     logger.info(f"\nCorpus: {len(doc_ids)} unique documents")
     logger.info(f"Avg doc length: {sum(len(d) for d in documents) / len(documents):.0f} chars")
 
-    chunk_ids, chunk_texts, chunk_to_doc = chunk_corpus(
-        doc_ids, documents, strategy="whole_doc"
-    )
+    chunk_ids, chunk_texts, _chunk_to_doc = chunk_corpus(doc_ids, documents, strategy="whole_doc")
 
     logger.info("\n" + "=" * 60)
     logger.info("STEP 3: Building BM25 index...")
@@ -85,15 +76,19 @@ def main():
     logger.info("=" * 60)
 
     from src.utils.common import RetrievedDoc
-    oracle_retrieved = []
-    for qa in qa_items:
-        oracle_retrieved.append([RetrievedDoc(
-            doc_id=qa.context_id,
-            text=qa.gold_context,
-            score=1.0,
-            rank=0,
-            method="oracle",
-        )])
+
+    oracle_retrieved = [
+        [
+            RetrievedDoc(
+                doc_id=qa.context_id,
+                text=qa.gold_context,
+                score=1.0,
+                rank=0,
+                method="oracle",
+            )
+        ]
+        for qa in qa_items
+    ]
 
     oracle_metrics = compute_retrieval_metrics(oracle_retrieved, relevant_ids, k_values=[1, 3, 5])
     for name, value in sorted(oracle_metrics.items()):
@@ -129,7 +124,9 @@ def main():
             continue
         subset_retrieved = [all_retrieved[i] for i in subset_indices]
         subset_relevant = [relevant_ids[i] for i in subset_indices]
-        subset_metrics = compute_retrieval_metrics(subset_retrieved, subset_relevant, k_values=[3, 5, 10])
+        subset_metrics = compute_retrieval_metrics(
+            subset_retrieved, subset_relevant, k_values=[3, 5, 10]
+        )
         logger.info(f"\n  {subset_name} ({len(subset_indices)} queries):")
         for name in ["recall@3", "recall@5", "recall@10", "mrr@3"]:
             if name in subset_metrics:

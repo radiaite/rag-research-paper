@@ -1,15 +1,9 @@
 """Run a single retrieval experiment on T²-RAGBench."""
 
-from __future__ import annotations
-
-import json
-import sys
-from pathlib import Path
+import contextlib
 
 import click
 from tqdm import tqdm
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.chunking import chunk_corpus
 from src.data_loader import load_t2ragbench
@@ -33,14 +27,10 @@ logger = get_logger(__name__)
 INDEX_CACHE_ROOT = PROJECT_ROOT / "data" / "indexes"
 
 
-def _get_or_build_dense(embedder, emb_key: str, chunk_strategy: str,
-                         doc_ids: list[str], documents: list[str], name: str):
-    """Build a DenseRetriever, loading from cache if available.
-
-    The cache key includes the embedder's ``max_seq_length`` (when exposed)
-    so that bumping ``max_seq_length`` invalidates any stale index built at
-    a smaller value, rather than silently reusing it.
-    """
+def _get_or_build_dense(
+    embedder, emb_key: str, chunk_strategy: str, doc_ids: list[str], documents: list[str], name: str
+):
+    """Build a DenseRetriever, loading from cache if available."""
     from src.retrieval.dense_retriever import DenseRetriever
 
     max_seq = getattr(embedder, "max_seq_length", None)
@@ -51,9 +41,9 @@ def _get_or_build_dense(embedder, emb_key: str, chunk_strategy: str,
     if cache_dir.exists() and (cache_dir / "index.faiss").exists():
         logger.info(f"Loading cached dense index from {cache_dir}")
         retriever.load_index(cache_dir)
-        if len(retriever._doc_ids) != len(doc_ids):
+        if len(retriever.doc_ids) != len(doc_ids):
             logger.warning(
-                f"Cached index has {len(retriever._doc_ids)} docs but corpus has "
+                f"Cached index has {len(retriever.doc_ids)} docs but corpus has "
                 f"{len(doc_ids)}. Rebuilding."
             )
             retriever = DenseRetriever(embedder=embedder, name=name)
@@ -67,26 +57,27 @@ def _get_or_build_dense(embedder, emb_key: str, chunk_strategy: str,
 
 
 def build_retriever(method: str, config: dict, doc_ids: list[str], documents: list[str]):
-    """Factory: build and index a retriever by method name.
-
-    Imports are lazy so each method only requires its own dependencies.
-    """
+    """Factory: build and index a retriever by method name."""
     emb_key = config.get("_embedding_key", "openai_large")
     emb_config = config["embedding_models"].get(emb_key)
     chunk_strategy = config["chunking"]["strategy"]
 
     if method == "bm25":
         from src.retrieval.bm25_retriever import BM25Retriever
-        retriever = BM25Retriever(
-            k1=config["bm25"]["k1"], b=config["bm25"]["b"]
-        )
+
+        retriever = BM25Retriever(k1=config["bm25"]["k1"], b=config["bm25"]["b"])
         retriever.build_index(doc_ids, documents)
 
     elif method == "dense":
         from src.retrieval.base import create_embedder
+
         embedder = create_embedder(emb_config)
         retriever = _get_or_build_dense(
-            embedder, emb_key, chunk_strategy, doc_ids, documents,
+            embedder,
+            emb_key,
+            chunk_strategy,
+            doc_ids,
+            documents,
             name=f"dense_{emb_config['model']}",
         )
 
@@ -94,11 +85,16 @@ def build_retriever(method: str, config: dict, doc_ids: list[str], documents: li
         from src.retrieval.base import create_embedder
         from src.retrieval.bm25_retriever import BM25Retriever
         from src.retrieval.hybrid_retriever import HybridRetriever
+
         embedder = create_embedder(emb_config)
         bm25 = BM25Retriever(k1=config["bm25"]["k1"], b=config["bm25"]["b"])
         bm25.build_index(doc_ids, documents)
         dense = _get_or_build_dense(
-            embedder, emb_key, chunk_strategy, doc_ids, documents,
+            embedder,
+            emb_key,
+            chunk_strategy,
+            doc_ids,
+            documents,
             name=f"dense_{emb_config['model']}",
         )
         retriever = HybridRetriever(
@@ -111,6 +107,7 @@ def build_retriever(method: str, config: dict, doc_ids: list[str], documents: li
 
     elif method == "colbert":
         from src.retrieval.colbert_retriever import ColBERTRetriever
+
         retriever = ColBERTRetriever()
         retriever.build_index(doc_ids, documents)
 
@@ -118,6 +115,7 @@ def build_retriever(method: str, config: dict, doc_ids: list[str], documents: li
         from src.retrieval.base import create_embedder
         from src.retrieval.dense_retriever import DenseRetriever
         from src.retrieval.hyde_retriever import HyDERetriever
+
         embedder = create_embedder(emb_config)
         dense = DenseRetriever(embedder=embedder, name="dense_hyde")
         dense.build_index(doc_ids, documents)
@@ -134,6 +132,7 @@ def build_retriever(method: str, config: dict, doc_ids: list[str], documents: li
         from src.retrieval.dense_retriever import DenseRetriever
         from src.retrieval.hybrid_retriever import HybridRetriever
         from src.retrieval.multi_query_retriever import MultiQueryRetriever
+
         embedder = create_embedder(emb_config)
         bm25 = BM25Retriever(k1=config["bm25"]["k1"], b=config["bm25"]["b"])
         bm25.build_index(doc_ids, documents)
@@ -157,11 +156,19 @@ def build_retriever(method: str, config: dict, doc_ids: list[str], documents: li
 @click.option("--config", "config_path", default=None, help="Config YAML path")
 @click.option("--embedding", "emb_key", default="openai_large", help="Embedding model key")
 @click.option("--reranker", "reranker_key", default="none", help="Reranker key (none/cohere/local)")
-@click.option("--reranker-max-length", default=None, type=int,
-              help="Override the reranker's max_length without editing YAML. "
-                   "Use this to vary cross-encoder context window across runs.")
-@click.option("--reranker-batch-size", default=None, type=int,
-              help="Override the reranker's batch_size without editing YAML.")
+@click.option(
+    "--reranker-max-length",
+    default=None,
+    type=int,
+    help="Override the reranker's max_length without editing YAML. "
+    "Use this to vary cross-encoder context window across runs.",
+)
+@click.option(
+    "--reranker-batch-size",
+    default=None,
+    type=int,
+    help="Override the reranker's batch_size without editing YAML.",
+)
 @click.option("--top-k", default=5, type=int, help="Number of documents to retrieve")
 @click.option("--subset", default=None, help="Specific subset (FinQA/ConvFinQA/TAT-DQA)")
 @click.option("--max-queries", default=None, type=int, help="Limit queries (for testing)")
@@ -202,7 +209,8 @@ def main(
 
     chunk_strategy = cfg["chunking"]["strategy"]
     chunk_ids, chunk_texts, chunk_to_doc = chunk_corpus(
-        doc_ids, documents,
+        doc_ids,
+        documents,
         strategy=chunk_strategy,
         chunk_size=cfg["chunking"]["chunk_size"],
         chunk_overlap=cfg["chunking"]["chunk_overlap"],
@@ -215,18 +223,19 @@ def main(
 
     if reranker_key == "none":
         from src.reranking.reranker import NoReranker
+
         reranker = NoReranker()
-        rerank_top_k = top_k
         effective_reranker_max_length: int | None = None
     else:
         from src.reranking.reranker import create_reranker
+
         rcfg = dict(cfg["rerankers"][reranker_key])
         if reranker_max_length is not None:
             rcfg["max_length"] = reranker_max_length
         if reranker_batch_size is not None:
             rcfg["batch_size"] = reranker_batch_size
         reranker = create_reranker(rcfg)
-        rerank_top_k = rcfg.get("top_n", top_k)
+        rcfg.get("top_n", top_k)
         effective_reranker_max_length = rcfg.get("max_length")
 
     qa_items = data.qa_items[:max_queries] if max_queries else data.qa_items
@@ -236,9 +245,7 @@ def main(
         if chunk_strategy == "whole_doc":
             relevant_ids.append({qa.context_id})
         else:
-            relevant_chunks = {
-                cid for cid, did in chunk_to_doc.items() if did == qa.context_id
-            }
+            relevant_chunks = {cid for cid, did in chunk_to_doc.items() if did == qa.context_id}
             relevant_ids.append(relevant_chunks)
 
     logger.info(f"Retrieving for {len(queries)} queries (top_k={top_k})...")
@@ -256,13 +263,16 @@ def main(
     retrieval_metrics = compute_retrieval_metrics(all_retrieved, relevant_ids, k_values)
 
     per_query = []
-    for i, (qa, retrieved) in enumerate(zip(qa_items, all_retrieved)):
-        pq = compute_per_query_retrieval(retrieved, relevant_ids[i], k_values)
-        pq["query_id"] = qa.id
-        pq["subset"] = qa.subset
-        pq["latency_ms"] = latencies[i]
-        pq["retrieved_ids"] = [r.doc_id for r in retrieved]
-        per_query.append(pq)
+    for i, (qa, retrieved) in enumerate(zip(qa_items, all_retrieved, strict=True)):
+        per_query.append(
+            {
+                **compute_per_query_retrieval(retrieved, relevant_ids[i], k_values),
+                "query_id": qa.id,
+                "subset": qa.subset,
+                "latency_ms": latencies[i],
+                "retrieved_ids": [r.doc_id for r in retrieved],
+            }
+        )
 
     method_label = method
     if reranker_key != "none":
@@ -278,9 +288,7 @@ def main(
     _max_seq = None
     if hasattr(retriever, "embedder") and hasattr(retriever.embedder, "max_seq_length"):
         _max_seq = retriever.embedder.max_seq_length
-    elif hasattr(retriever, "dense_retriever") and hasattr(
-        retriever.dense_retriever, "embedder"
-    ):
+    elif hasattr(retriever, "dense_retriever") and hasattr(retriever.dense_retriever, "embedder"):
         _emb = retriever.dense_retriever.embedder
         if hasattr(_emb, "max_seq_length"):
             _max_seq = _emb.max_seq_length
@@ -297,12 +305,10 @@ def main(
     # rglob, not just index.faiss: ColBERT indices have multiple shard files.
     index_size_mb = 0.0
     if index_path.exists():
-        try:
-            index_size_mb = sum(
-                p.stat().st_size for p in index_path.rglob("*") if p.is_file()
-            ) / (1024 * 1024)
-        except OSError:
-            pass
+        with contextlib.suppress(OSError):
+            index_size_mb = sum(p.stat().st_size for p in index_path.rglob("*") if p.is_file()) / (
+                1024 * 1024
+            )
 
     result = ExperimentResult(
         method=method_label,
@@ -318,6 +324,8 @@ def main(
             "reranker_max_length": effective_reranker_max_length,
             "candidate_pool_size": candidate_pool_size,
             "provenance": provenance,
+            # LLM calls that fell back (HyDE: raw query, MultiQuery: no variants, ...).
+            "llm_failures": getattr(retriever, "llm_failures", None),
         },
         retrieval_metrics=retrieval_metrics,
         per_query_results=per_query,
@@ -332,15 +340,15 @@ def main(
     output_path = RESULTS_DIR / f"{fname}.json"
     result.save(output_path)
 
-    logger.info(f"\n{'='*60}")
+    logger.info(f"\n{'=' * 60}")
     logger.info(f"Method: {method_label}")
     logger.info(f"Embedding: {emb_key} | Reranker: {reranker_key}")
     logger.info(f"Queries: {result.num_queries} | Avg latency: {result.avg_latency_ms:.1f}ms")
     logger.info(f"Index time: {result.index_time_seconds:.1f}s")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     for metric, value in sorted(retrieval_metrics.items()):
         logger.info(f"  {metric}: {value:.4f}")
-    logger.info(f"{'='*60}")
+    logger.info(f"{'=' * 60}")
     logger.info(f"Results saved to: {output_path}")
 
 

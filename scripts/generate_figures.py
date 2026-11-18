@@ -1,35 +1,19 @@
 #!/usr/bin/env python3
-"""Generate publication-quality figures for paper.tex using Matplotlib.
-
-Outputs PDF + PNG to paper_neurips/figures/ (the NeurIPS submission's figure
-directory). Loads result JSONs from BOTH `data/results/` (newer BGE-M3 runs
-written by run_experiment.py) and `results/` (original OpenAI runs); the
-former takes precedence when a filename collides.
-
-Figure 4 (retrieval-generation correlation) is intentionally fixed to its
-original four-point panel (Dense / BM25 / Hybrid RRF / Oracle, GPT-4.1-mini)
-because BGE-M3 has no end-to-end generation runs in this submission cycle.
-The caption in `paper_neurips/main.tex` reflects this scope.
-
-Usage: python scripts/generate_figures.py
-"""
+"""Generate publication-quality figures for paper.tex using Matplotlib."""
 
 import json
-import os
 from collections import defaultdict
+from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mticker
 import numpy as np
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RESULTS_DIRS = [
-    os.path.join(ROOT, "data", "results"),
-    os.path.join(ROOT, "results"),
-]
-OUTDIR = os.path.join(ROOT, "paper_neurips", "figures")
+ROOT = Path(__file__).resolve().parent.parent
+RESULTS_DIRS = [ROOT / "data" / "results", ROOT / "results"]
+OUTDIR = ROOT / "results" / "figures"
 
 # Hybrid+BGE Rerank points at the 1024-token (BAAI fine-tune) result, not the
 # 512-token model-card default. The paper text uses 1024 throughout.
@@ -50,26 +34,47 @@ METHODS = [
 ]
 
 COLOR = {
-    "HyDE": "#d62728", "Dense": "#ff7f0e", "Ctx Dense": "#bcbd22",
-    "Multi-Query": "#9467bd", "BM25": "#1f77b4", "CRAG": "#17becf",
-    "Hybrid RRF": "#2ca02c", "Ctx Hybrid": "#8c564b", "Hybrid+Rerank": "#e377c2",
+    "HyDE": "#d62728",
+    "Dense": "#ff7f0e",
+    "Ctx Dense": "#bcbd22",
+    "Multi-Query": "#9467bd",
+    "BM25": "#1f77b4",
+    "CRAG": "#17becf",
+    "Hybrid RRF": "#2ca02c",
+    "Ctx Hybrid": "#8c564b",
+    "Hybrid+Rerank": "#e377c2",
     "Dense (BGE-M3)": "#ffb87a",
     "Hybrid (BGE-M3)": "#7fc97f",
     "Hybrid+BGE Rerank": "#c45ca1",
     "ColBERTv2": "#7B3294",
 }
 MARKER = {
-    "HyDE": "v", "Dense": "s", "Ctx Dense": "D",
-    "Multi-Query": "P", "BM25": "o", "CRAG": "^",
-    "Hybrid RRF": "X", "Ctx Hybrid": "*", "Hybrid+Rerank": "h",
-    "Dense (BGE-M3)": "<", "Hybrid (BGE-M3)": ">", "Hybrid+BGE Rerank": "p",
+    "HyDE": "v",
+    "Dense": "s",
+    "Ctx Dense": "D",
+    "Multi-Query": "P",
+    "BM25": "o",
+    "CRAG": "^",
+    "Hybrid RRF": "X",
+    "Ctx Hybrid": "*",
+    "Hybrid+Rerank": "h",
+    "Dense (BGE-M3)": "<",
+    "Hybrid (BGE-M3)": ">",
+    "Hybrid+BGE Rerank": "p",
     "ColBERTv2": "8",
 }
 DASH = {
-    "HyDE": (0, (3, 2)), "Dense": (0, (3, 2)), "BM25": (0, (3, 2)),
-    "Ctx Dense": (0, (5, 2, 1, 2)), "Multi-Query": (0, (5, 2, 1, 2)), "CRAG": (0, (5, 2, 1, 2)),
-    "Hybrid RRF": "solid", "Ctx Hybrid": "solid", "Hybrid+Rerank": "solid",
-    "Dense (BGE-M3)": (0, (3, 2)), "Hybrid (BGE-M3)": "solid",
+    "HyDE": (0, (3, 2)),
+    "Dense": (0, (3, 2)),
+    "BM25": (0, (3, 2)),
+    "Ctx Dense": (0, (5, 2, 1, 2)),
+    "Multi-Query": (0, (5, 2, 1, 2)),
+    "CRAG": (0, (5, 2, 1, 2)),
+    "Hybrid RRF": "solid",
+    "Ctx Hybrid": "solid",
+    "Hybrid+Rerank": "solid",
+    "Dense (BGE-M3)": (0, (3, 2)),
+    "Hybrid (BGE-M3)": "solid",
     "Hybrid+BGE Rerank": "solid",
     "ColBERTv2": (0, (1, 1.5)),
 }
@@ -78,24 +83,26 @@ TEXT_W = 5.5
 COL_W = 5.5
 HALF_W = 3.3
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
-    "font.size": 9,
-    "axes.labelsize": 10,
-    "axes.titlesize": 10,
-    "xtick.labelsize": 8.5,
-    "ytick.labelsize": 8.5,
-    "legend.fontsize": 7.5,
-    "figure.dpi": 150,
-    "savefig.dpi": 600,
-    "savefig.bbox": "tight",
-    "savefig.pad_inches": 0.03,
-    "axes.linewidth": 0.8,
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "grid.linestyle": ":",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
+        "font.size": 9,
+        "axes.labelsize": 10,
+        "axes.titlesize": 10,
+        "xtick.labelsize": 8.5,
+        "ytick.labelsize": 8.5,
+        "legend.fontsize": 7.5,
+        "figure.dpi": 150,
+        "savefig.dpi": 600,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.03,
+        "axes.linewidth": 0.8,
+        "axes.grid": True,
+        "grid.alpha": 0.3,
+        "grid.linestyle": ":",
+    }
+)
 
 METRIC_GREEN = "#2ca02c"
 METRIC_BLUE = "#1f77b4"
@@ -104,29 +111,22 @@ METRIC_BLUE = "#1f77b4"
 def load_json(fname):
     """Load a result JSON, searching `RESULTS_DIRS` in order."""
     for d in RESULTS_DIRS:
-        path = os.path.join(d, fname)
-        if os.path.exists(path):
-            with open(path) as f:
-                return json.load(f)
-    raise FileNotFoundError(
-        f"{fname} not found in any of: {RESULTS_DIRS}"
-    )
+        path = d / fname
+        if path.exists():
+            return json.loads(path.read_text())
+    raise FileNotFoundError(f"{fname} not found in any of: {RESULTS_DIRS}")
 
 
 def save(fig, name):
-    os.makedirs(OUTDIR, exist_ok=True)
+    OUTDIR.mkdir(parents=True, exist_ok=True)
     for ext in ("pdf", "png"):
-        fig.savefig(os.path.join(OUTDIR, f"{name}.{ext}"))
+        fig.savefig(OUTDIR / f"{name}.{ext}")
     plt.close(fig)
     print(f"  {name}.pdf + .png")
 
 
 def load_all_data():
-    """Load every method in METHODS; skip (with a warning) any that are missing.
-
-    Mutates the module-level METHODS list to drop missing entries so all
-    downstream figures iterate only over methods that actually have data.
-    """
+    """Load every method in METHODS; skip (with a warning) any that are missing."""
     global METHODS
     agg = {}
     sub_r5 = {}
@@ -160,10 +160,16 @@ def fig1_recall_at_k(agg):
         avail = [k for k in ks if f"recall@{k}" in rm]
         vals = [rm[f"recall@{k}"] for k in avail]
         ax.plot(
-            avail, vals, label=name,
-            color=COLOR[name], marker=MARKER[name],
-            linestyle=DASH[name], linewidth=1.6, markersize=6,
-            markeredgecolor="white", markeredgewidth=0.6,
+            avail,
+            vals,
+            label=name,
+            color=COLOR[name],
+            marker=MARKER[name],
+            linestyle=DASH[name],
+            linewidth=1.6,
+            markersize=6,
+            markeredgecolor="white",
+            markeredgewidth=0.6,
         )
 
     ax.set_xlabel("k")
@@ -172,10 +178,16 @@ def fig1_recall_at_k(agg):
     ax.set_xticklabels([str(k) for k in ks])
     ax.set_ylim(0.15, 0.95)
     ax.legend(
-        loc="lower center", bbox_to_anchor=(0.5, 1.02),
-        ncol=4, framealpha=0.95,
-        edgecolor="#cccccc", fancybox=False, handlelength=2.0,
-        columnspacing=1.0, handletextpad=0.5, fontsize=7,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 1.02),
+        ncol=4,
+        framealpha=0.95,
+        edgecolor="#cccccc",
+        fancybox=False,
+        handlelength=2.0,
+        columnspacing=1.0,
+        handletextpad=0.5,
+        fontsize=7,
     )
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -186,8 +198,11 @@ def fig1_recall_at_k(agg):
 def fig2_main_comparison(agg):
     print("Figure 2: Main comparison bars")
     metrics = [
-        ("recall@5", "R@5"), ("recall@10", "R@10"),
-        ("mrr@3", "MRR@3"), ("ndcg@10", "nDCG@10"), ("map", "MAP"),
+        ("recall@5", "R@5"),
+        ("recall@10", "R@10"),
+        ("mrr@3", "MRR@3"),
+        ("ndcg@10", "nDCG@10"),
+        ("map", "MAP"),
     ]
     n_methods = len(METHODS)
     n_metrics = len(metrics)
@@ -202,9 +217,13 @@ def fig2_main_comparison(agg):
         vals = [rm[key] for key, _ in metrics]
         offset = (i - n_methods / 2 + 0.5) * bar_w
         ax.bar(
-            x + offset, vals, bar_w * 0.92,
-            label=name, color=COLOR[name],
-            edgecolor="white", linewidth=0.3,
+            x + offset,
+            vals,
+            bar_w * 0.92,
+            label=name,
+            color=COLOR[name],
+            edgecolor="white",
+            linewidth=0.3,
         )
 
     ax.set_xticks(x)
@@ -212,10 +231,16 @@ def fig2_main_comparison(agg):
     ax.set_ylabel("Score")
     ax.set_ylim(0, 0.95)
     ax.legend(
-        loc="upper center", bbox_to_anchor=(0.5, 1.15),
-        ncol=5, framealpha=0.95, edgecolor="#cccccc",
-        fancybox=False, fontsize=7.5, handlelength=1.2,
-        columnspacing=0.8, handletextpad=0.4,
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.15),
+        ncol=5,
+        framealpha=0.95,
+        edgecolor="#cccccc",
+        fancybox=False,
+        fontsize=7.5,
+        handlelength=1.2,
+        columnspacing=0.8,
+        handletextpad=0.4,
     )
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
@@ -242,8 +267,16 @@ def fig3_subset_heatmap(sub_r5):
         for j in range(len(subsets)):
             val = z[i, j]
             color = "white" if val > 0.78 else "black"
-            ax.text(i, j, f"{val:.2f}", ha="center", va="center",
-                    fontsize=6.5, fontweight="bold", color=color)
+            ax.text(
+                i,
+                j,
+                f"{val:.2f}",
+                ha="center",
+                va="center",
+                fontsize=6.5,
+                fontweight="bold",
+                color=color,
+            )
 
     cbar = fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     cbar.ax.tick_params(labelsize=7)
@@ -257,10 +290,10 @@ def fig4_correlation(agg):
     gen = {g["tag"]: g["nm"] for g in load_json("generation_all_fixed.json")}
 
     points = [
-        ("Dense",      "dense_gpt41mini",  "#ff7f0e", "s"),
-        ("BM25",       "bm25_gpt41mini",   "#1f77b4", "o"),
+        ("Dense", "dense_gpt41mini", "#ff7f0e", "s"),
+        ("BM25", "bm25_gpt41mini", "#1f77b4", "o"),
         ("Hybrid RRF", "hybrid_gpt41mini", "#2ca02c", "X"),
-        ("Oracle",     "oracle_gpt41mini",  "#7B3294", "D"),
+        ("Oracle", "oracle_gpt41mini", "#7B3294", "D"),
     ]
     xs, ys = [], []
     for display, tag, _, _ in points:
@@ -277,14 +310,36 @@ def fig4_correlation(agg):
     ax.plot(xl, slope * xl + intercept, "--", color="gray", alpha=0.5, linewidth=1.2)
 
     for i, (display, _, clr, mkr) in enumerate(points):
-        ax.scatter(xs[i], ys[i], s=80, color=clr, marker=mkr,
-                   edgecolors="white", linewidth=0.8, zorder=5,
-                   label=display)
+        ax.scatter(
+            xs[i],
+            ys[i],
+            s=80,
+            color=clr,
+            marker=mkr,
+            edgecolors="white",
+            linewidth=0.8,
+            zorder=5,
+            label=display,
+        )
 
-    ax.legend(loc="lower right", framealpha=0.95, edgecolor="#cccccc",
-              fancybox=False, handletextpad=0.4, fontsize=7)
-    ax.text(0.03, 0.97, f"$r$ = {r:.3f}", transform=ax.transAxes,
-            fontsize=9, va="top", ha="left", style="italic")
+    ax.legend(
+        loc="lower right",
+        framealpha=0.95,
+        edgecolor="#cccccc",
+        fancybox=False,
+        handletextpad=0.4,
+        fontsize=7,
+    )
+    ax.text(
+        0.03,
+        0.97,
+        f"$r$ = {r:.3f}",
+        transform=ax.transAxes,
+        fontsize=9,
+        va="top",
+        ha="left",
+        style="italic",
+    )
     ax.set_xlabel("Retrieval Recall@5")
     ax.set_ylabel("Generation Number Match")
     ax.set_xlim(0.52, 1.08)
@@ -298,16 +353,16 @@ def fig4_correlation(agg):
 def fig5_fusion_ablation():
     print("Figure 5: Fusion ablation")
     cc_alpha = [0.3, 0.5, 0.7, 0.9]
-    cc_r5  = [0.703, 0.726, 0.698, 0.614]
+    cc_r5 = [0.703, 0.726, 0.698, 0.614]
     cc_mrr = [0.456, 0.466, 0.452, 0.401]
 
-    rrf_k   = [10, 30, 60, 100]
-    rrf_r5  = [0.716, 0.705, 0.695, 0.695]
+    rrf_k = [10, 30, 60, 100]
+    rrf_r5 = [0.716, 0.705, 0.695, 0.695]
     rrf_mrr = [0.435, 0.433, 0.433, 0.433]
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(TEXT_W, 2.7), sharey=True)
 
-    mkr = dict(markersize=6, markeredgecolor="white", markeredgewidth=0.6)
+    mkr = {"markersize": 6, "markeredgecolor": "white", "markeredgewidth": 0.6}
 
     ax1.plot(cc_alpha, cc_r5, "o-", color=METRIC_GREEN, linewidth=1.8, label="R@5", **mkr)
     ax1.plot(cc_alpha, cc_mrr, "s--", color=METRIC_BLUE, linewidth=1.8, label="MRR@3", **mkr)
@@ -326,11 +381,19 @@ def fig5_fusion_ablation():
     ax2.spines["right"].set_visible(False)
 
     handles, labels = ax1.get_legend_handles_labels()
-    fig.legend(handles, labels, loc="lower center", ncol=2,
-               bbox_to_anchor=(0.5, 0.0), framealpha=0.95,
-               edgecolor="#cccccc", fancybox=False, fontsize=8)
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        ncol=2,
+        bbox_to_anchor=(0.5, 0.0),
+        framealpha=0.95,
+        edgecolor="#cccccc",
+        fancybox=False,
+        fontsize=8,
+    )
 
-    fig.tight_layout(rect=[0, 0.10, 1, 1])
+    fig.tight_layout(rect=(0, 0.10, 1, 1))
     save(fig, "fusion_ablation")
 
 
@@ -341,15 +404,15 @@ def fig6_reranker_depth():
     lookup = {(d["candidates"], d["top_n"]): d["metrics"] for d in raw}
 
     labels = [f"{c}\u2192{n}" for c, n in order]
-    r5  = [lookup[k]["recall@5"] for k in order]
+    r5 = [lookup[k]["recall@5"] for k in order]
     mrr = [lookup[k]["mrr@3"] for k in order]
 
     x = np.arange(len(labels))
     w = 0.35
 
     fig, ax = plt.subplots(figsize=(COL_W, 2.6))
-    ax.bar(x - w/2, r5, w, label="R@5", color=METRIC_GREEN, edgecolor="white", linewidth=0.4)
-    ax.bar(x + w/2, mrr, w, label="MRR@3", color=METRIC_BLUE, edgecolor="white", linewidth=0.4)
+    ax.bar(x - w / 2, r5, w, label="R@5", color=METRIC_GREEN, edgecolor="white", linewidth=0.4)
+    ax.bar(x + w / 2, mrr, w, label="MRR@3", color=METRIC_BLUE, edgecolor="white", linewidth=0.4)
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=8)

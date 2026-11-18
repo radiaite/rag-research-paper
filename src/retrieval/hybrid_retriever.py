@@ -1,7 +1,5 @@
 """Hybrid retriever that fuses BM25 and dense retrieval results."""
 
-from __future__ import annotations
-
 from collections import defaultdict
 from typing import Any, Literal
 
@@ -18,35 +16,7 @@ FusionMethod = Literal["rrf", "cc", "dbsf"]
 
 
 class HybridRetriever(BaseRetriever):
-    """Hybrid retriever that fuses sparse and dense results.
-
-    Supports three fusion strategies:
-
-    * **rrf** -- Reciprocal Rank Fusion.  Score for each document is the
-      sum of ``1 / (k + rank)`` across retrievers.
-    * **cc** -- Convex Combination.  Scores from each retriever are
-      min-max normalised to [0, 1] then combined as
-      ``alpha * dense + (1 - alpha) * bm25``.
-    * **dbsf** -- Distribution-Based Score Fusion.  Scores are
-      standardised to zero mean and unit variance, then combined
-      with the same convex-combination formula.
-
-    Parameters
-    ----------
-    bm25_retriever : BM25Retriever
-        Sparse retriever (must already have its index built).
-    dense_retriever : DenseRetriever
-        Dense retriever (must already have its index built).
-    fusion : FusionMethod
-        Fusion strategy (default ``"rrf"``).
-    rrf_k : int
-        Smoothing constant for RRF (default 60).
-    alpha : float
-        Weight of the dense score in CC / DBSF (default 0.5).
-    candidate_k_multiplier : int
-        Multiplier applied to *top_k* when fetching candidates from
-        each retriever so that the fusion pool is large enough.
-    """
+    """Hybrid retriever that fuses sparse and dense results."""
 
     name: str = "hybrid"
 
@@ -67,15 +37,7 @@ class HybridRetriever(BaseRetriever):
         self.candidate_k_multiplier = candidate_k_multiplier
 
     def build_index(self, doc_ids: list[str], documents: list[str]) -> None:
-        """Build indices for both the BM25 and dense retrievers.
-
-        Parameters
-        ----------
-        doc_ids : list[str]
-            Unique identifier for each document.
-        documents : list[str]
-            Raw document texts.
-        """
+        """Build indices for both the BM25 and dense retrievers."""
         logger.info("Building hybrid index (%s fusion) ...", self.fusion)
         self.bm25_retriever.build_index(doc_ids, documents)
         self.dense_retriever.build_index(doc_ids, documents)
@@ -86,11 +48,7 @@ class HybridRetriever(BaseRetriever):
         bm25_results: list[RetrievedDoc],
         dense_results: list[RetrievedDoc],
     ) -> dict[str, dict[str, Any]]:
-        """Merge candidate lists, keeping the best text and per-retriever info.
-
-        Returns a mapping ``doc_id -> {text, bm25_score, bm25_rank,
-        dense_score, dense_rank}``.
-        """
+        """Merge candidate lists, keeping the best text and per-retriever info."""
         candidates: dict[str, dict[str, Any]] = {}
 
         for doc in bm25_results:
@@ -119,17 +77,10 @@ class HybridRetriever(BaseRetriever):
 
     def _fuse_rrf(
         self,
-        candidates: dict[str, dict[str, Any]],
         bm25_results: list[RetrievedDoc],
         dense_results: list[RetrievedDoc],
     ) -> dict[str, float]:
-        """Reciprocal Rank Fusion.
-
-        score(d) = sum_{r in retrievers} 1 / (k + rank_r(d))
-
-        Documents absent from a retriever's list receive no contribution
-        (equivalent to rank = infinity).
-        """
+        """Reciprocal Rank Fusion."""
         scores: dict[str, float] = defaultdict(float)
 
         for doc in bm25_results:
@@ -151,13 +102,8 @@ class HybridRetriever(BaseRetriever):
             return [0.5] * len(values)
         return [(v - lo) / span for v in values]
 
-    def _fuse_cc(
-        self, candidates: dict[str, dict[str, Any]]
-    ) -> dict[str, float]:
-        """Convex Combination with min-max normalised scores.
-
-        fused(d) = alpha * norm_dense(d) + (1 - alpha) * norm_bm25(d)
-        """
+    def _fuse_cc(self, candidates: dict[str, dict[str, Any]]) -> dict[str, float]:
+        """Convex Combination with min-max normalised scores."""
         doc_ids = list(candidates.keys())
         bm25_raw = [candidates[did]["bm25_score"] for did in doc_ids]
         dense_raw = [candidates[did]["dense_score"] for did in doc_ids]
@@ -167,7 +113,7 @@ class HybridRetriever(BaseRetriever):
 
         return {
             did: self.alpha * dn + (1.0 - self.alpha) * bn
-            for did, bn, dn in zip(doc_ids, bm25_norm, dense_norm)
+            for did, bn, dn in zip(doc_ids, bm25_norm, dense_norm, strict=True)
         }
 
     @staticmethod
@@ -182,16 +128,8 @@ class HybridRetriever(BaseRetriever):
         mean = float(arr.mean())
         return [float((v - mean) / std) for v in values]
 
-    def _fuse_dbsf(
-        self, candidates: dict[str, dict[str, Any]]
-    ) -> dict[str, float]:
-        """Distribution-Based Score Fusion.
-
-        Each retriever's scores are z-score normalised independently,
-        then fused with the same convex combination formula as CC:
-
-            fused(d) = alpha * z_dense(d) + (1 - alpha) * z_bm25(d)
-        """
+    def _fuse_dbsf(self, candidates: dict[str, dict[str, Any]]) -> dict[str, float]:
+        """Distribution-Based Score Fusion."""
         doc_ids = list(candidates.keys())
         bm25_raw = [candidates[did]["bm25_score"] for did in doc_ids]
         dense_raw = [candidates[did]["dense_score"] for did in doc_ids]
@@ -201,7 +139,7 @@ class HybridRetriever(BaseRetriever):
 
         return {
             did: self.alpha * dz + (1.0 - self.alpha) * bz
-            for did, bz, dz in zip(doc_ids, bm25_z, dense_z)
+            for did, bz, dz in zip(doc_ids, bm25_z, dense_z, strict=True)
         }
 
     def _fuse(
@@ -213,7 +151,7 @@ class HybridRetriever(BaseRetriever):
         candidates = self._collect_candidates(bm25_results, dense_results)
 
         if self.fusion == "rrf":
-            return self._fuse_rrf(candidates, bm25_results, dense_results)
+            return self._fuse_rrf(bm25_results, dense_results)
         elif self.fusion == "cc":
             return self._fuse_cc(candidates)
         elif self.fusion == "dbsf":
@@ -228,7 +166,7 @@ class HybridRetriever(BaseRetriever):
         top_k: int,
     ) -> list[RetrievedDoc]:
         """Sort candidates by fused score and return top-k ``RetrievedDoc``s."""
-        sorted_ids = sorted(fused_scores, key=fused_scores.get, reverse=True)[:top_k]  # type: ignore[arg-type]
+        sorted_ids = sorted(fused_scores, key=fused_scores.__getitem__, reverse=True)[:top_k]
 
         results: list[RetrievedDoc] = []
         for rank, doc_id in enumerate(sorted_ids, start=1):
@@ -251,20 +189,7 @@ class HybridRetriever(BaseRetriever):
         return results
 
     def retrieve(self, query: str, top_k: int = 5) -> list[RetrievedDoc]:
-        """Retrieve from both sub-retrievers, fuse, and return top-k.
-
-        Parameters
-        ----------
-        query : str
-            Natural-language query string.
-        top_k : int
-            Number of documents to return after fusion.
-
-        Returns
-        -------
-        list[RetrievedDoc]
-            Fused results sorted by descending fused score.
-        """
+        """Retrieve from both sub-retrievers, fuse, and return top-k."""
         candidate_k = top_k * self.candidate_k_multiplier
 
         with Timer() as t:
@@ -278,48 +203,32 @@ class HybridRetriever(BaseRetriever):
 
         logger.debug(
             "Hybrid [%s] retrieve: %d candidates fused in %.1f ms",
-            self.fusion, len(candidates), t.elapsed_ms,
+            self.fusion,
+            len(candidates),
+            t.elapsed_ms,
         )
         return results
 
-    def retrieve_batch(
-        self, queries: list[str], top_k: int = 5
-    ) -> list[list[RetrievedDoc]]:
-        """Batch hybrid retrieval.
-
-        Delegates to each sub-retriever's ``retrieve_batch`` for
-        efficiency, then fuses per-query results.
-
-        Parameters
-        ----------
-        queries : list[str]
-            Batch of query strings.
-        top_k : int
-            Number of results per query after fusion.
-
-        Returns
-        -------
-        list[list[RetrievedDoc]]
-            One fused result list per query.
-        """
+    def retrieve_batch(self, queries: list[str], top_k: int = 5) -> list[list[RetrievedDoc]]:
+        """Batch hybrid retrieval."""
         candidate_k = top_k * self.candidate_k_multiplier
-        logger.info("Hybrid batch retrieval [%s]: %d queries, top_k=%d",
-                     self.fusion, len(queries), top_k)
+        logger.info(
+            "Hybrid batch retrieval [%s]: %d queries, top_k=%d", self.fusion, len(queries), top_k
+        )
 
         with Timer() as t:
             bm25_batch = self.bm25_retriever.retrieve_batch(queries, top_k=candidate_k)
             dense_batch = self.dense_retriever.retrieve_batch(queries, top_k=candidate_k)
 
             batch_results: list[list[RetrievedDoc]] = []
-            for bm25_results, dense_results in zip(bm25_batch, dense_batch):
+            for bm25_results, dense_results in zip(bm25_batch, dense_batch, strict=True):
                 candidates = self._collect_candidates(bm25_results, dense_results)
                 fused_scores = self._fuse(bm25_results, dense_results)
-                batch_results.append(
-                    self._build_results(fused_scores, candidates, top_k)
-                )
+                batch_results.append(self._build_results(fused_scores, candidates, top_k))
 
         logger.info(
             "Hybrid batch retrieval finished in %.2f s (avg %.1f ms/query).",
-            t.elapsed, t.elapsed_ms / max(len(queries), 1),
+            t.elapsed,
+            t.elapsed_ms / max(len(queries), 1),
         )
         return batch_results

@@ -1,7 +1,5 @@
 """Load and preprocess the T²-RAGBench dataset from HuggingFace."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -19,6 +17,7 @@ SUBSETS = ["FinQA", "ConvFinQA", "TAT-DQA"]
 @dataclass
 class QAItem:
     """A single question-answer pair with its ground truth context."""
+
     id: str
     subset: str
     question: str
@@ -34,6 +33,7 @@ class QAItem:
 @dataclass
 class Document:
     """A single document in the corpus."""
+
     doc_id: str
     text: str
     subset: str
@@ -43,6 +43,7 @@ class Document:
 @dataclass
 class T2RAGBenchData:
     """Container for the full dataset."""
+
     qa_items: list[QAItem]
     corpus: dict[str, Document]  # context_id -> Document
     subsets: dict[str, list[QAItem]]  # subset_name -> list of QAItems
@@ -70,18 +71,9 @@ def load_t2ragbench(
     split: str | None = None,
     cache_dir: str | Path | None = None,
 ) -> T2RAGBenchData:
-    """Load T²-RAGBench from HuggingFace and build corpus.
-
-    Args:
-        subsets: Which subsets to load. Defaults to all three.
-        split: Which split to use (train/dev/test). None = all available.
-        cache_dir: HuggingFace cache directory.
-
-    Returns:
-        T2RAGBenchData with all QA items and deduplicated corpus.
-    """
+    """Load T²-RAGBench from HuggingFace and build corpus."""
     subsets = subsets or SUBSETS
-    cache_dir = cache_dir or str(DATA_DIR / "raw")
+    cache_dir = str(cache_dir or DATA_DIR / "raw")
 
     all_qa: list[QAItem] = []
     corpus: dict[str, Document] = {}
@@ -92,10 +84,7 @@ def load_t2ragbench(
         ds = load_dataset("G4KMU/t2-ragbench", subset_name, cache_dir=cache_dir)
 
         available_splits = list(ds.keys())
-        if split and split in available_splits:
-            splits_to_use = [split]
-        else:
-            splits_to_use = available_splits
+        splits_to_use = [split] if split and split in available_splits else available_splits
 
         subset_items: list[QAItem] = []
         for sp in splits_to_use:
@@ -135,8 +124,7 @@ def load_t2ragbench(
 
         all_qa.extend(subset_items)
         by_subset[subset_name] = subset_items
-        logger.info(f"  {subset_name}: {len(subset_items)} QA pairs, "
-                     f"corpus now {len(corpus)} docs")
+        logger.info(f"  {subset_name}: {len(subset_items)} QA pairs, corpus now {len(corpus)} docs")
 
     data = T2RAGBenchData(qa_items=all_qa, corpus=corpus, subsets=by_subset)
     logger.info(data.summary())
@@ -148,14 +136,15 @@ def save_corpus_texts(data: T2RAGBenchData, output_dir: Path | None = None) -> P
     output_dir = output_dir or DATA_DIR / "processed"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    corpus_records = []
-    for doc in data.corpus.values():
-        corpus_records.append({
+    corpus_records = [
+        {
             "doc_id": doc.doc_id,
             "text": doc.text,
             "subset": doc.subset,
             **doc.metadata,
-        })
+        }
+        for doc in data.corpus.values()
+    ]
 
     path = output_dir / "corpus.json"
     pd.DataFrame(corpus_records).to_json(path, orient="records", indent=2)
@@ -168,15 +157,16 @@ def save_queries(data: T2RAGBenchData, output_dir: Path | None = None) -> Path:
     output_dir = output_dir or DATA_DIR / "processed"
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    query_records = []
-    for qa in data.qa_items:
-        query_records.append({
+    query_records = [
+        {
             "id": qa.id,
             "subset": qa.subset,
             "question": qa.question,
             "answer": qa.answer,
             "context_id": qa.context_id,
-        })
+        }
+        for qa in data.qa_items
+    ]
 
     path = output_dir / "queries.json"
     pd.DataFrame(query_records).to_json(path, orient="records", indent=2)

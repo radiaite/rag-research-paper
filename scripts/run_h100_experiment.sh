@@ -1,41 +1,9 @@
 #!/usr/bin/env bash
-# scripts/run_h100_experiment.sh
-#
-# End-to-end driver for BGE-M3 experiments on a rented H100 / H200 / A100
-# instance (or Colab). Smart-skips runs whose result JSON is already complete
-# (23,088 per-query records), so re-invoking the script after a failure picks
-# up where it left off.
-#
-# Runs three configurations on the full T²-RAGBench test set:
-#     dense  + bge_m3 + no rerank             (~3 min on H100)
-#     hybrid + bge_m3 + no rerank             (~3 min; reuses dense index)
-#     hybrid + bge_m3 + bge rerank   @ 512    (~30-60 min)  ← headline
-#     hybrid + bge_m3 + bge rerank   @ 1024   (~1-2 hr)     ← in-regime sanity
-#     hybrid + bge_m3 + bge rerank   @ 2048   (~2-4 hr)     ← out-of-regime sanity
-#     ColBERTv2 (late-interaction)            (~3-6 hr)     ← table-structure fix
-#
-# Usage:
-#     bash scripts/run_h100_experiment.sh                 # default: smart-skip
-#     bash scripts/run_h100_experiment.sh --sanity-only   # only the 100-query smoke
-#     bash scripts/run_h100_experiment.sh --force         # rerun all 3 even if present
-#     bash scripts/run_h100_experiment.sh --skip-install  # don't pip install
-#     bash scripts/run_h100_experiment.sh --skip-sanity   # skip the 100-query smoke
-#
-# Run from inside the repo:
-#     git clone <fork-url> RAGPaper && cd RAGPaper
-#     bash scripts/run_h100_experiment.sh
-#
-# Or in one go on Colab:
-#     !git clone <fork-url> /content/RAGPaper && \
-#       cd /content/RAGPaper && bash scripts/run_h100_experiment.sh
-#
-# All output is also tee-d to run.log in the repo root for archival.
+# BGE-M3 + ColBERTv2 runs on a rented GPU; skips runs whose result JSON is complete.
+# Flags: --sanity-only --force --skip-install --skip-sanity. Output tee'd to run.log.
 
 set -euo pipefail
 
-# ------------------------------------------------------------------
-# Locate repo root regardless of caller's CWD.
-# ------------------------------------------------------------------
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 cd "$REPO_ROOT"
@@ -43,9 +11,6 @@ cd "$REPO_ROOT"
 LOG_FILE="$REPO_ROOT/run.log"
 exec > >(tee -a "$LOG_FILE") 2>&1
 
-# ------------------------------------------------------------------
-# Parse args.
-# ------------------------------------------------------------------
 SANITY_ONLY=0
 FORCE=0
 SKIP_INSTALL=0
@@ -65,9 +30,6 @@ for arg in "$@"; do
     esac
 done
 
-# ------------------------------------------------------------------
-# Logging helpers.
-# ------------------------------------------------------------------
 log()   { echo "[$(date +%H:%M:%S)] $*"; }
 phase() {
     echo
@@ -76,12 +38,8 @@ phase() {
     echo "================================================================="
 }
 
-# Print summary on exit, success or failure.
 trap 'echo; echo "Run log saved to: $LOG_FILE"' EXIT
 
-# ------------------------------------------------------------------
-# Phase A: env check
-# ------------------------------------------------------------------
 phase "Phase A — environment check"
 
 python3 - <<'PY'
@@ -98,10 +56,7 @@ try:
         print(f"CUDA        : {torch.version.cuda}")
         print(f"GPU         : {gpu}  (sm_{cap[0]}{cap[1]})")
         print(f"GPU memory  : {gb:.1f} GB")
-        # Memory is the actual constraint for default batch sizes, not card
-        # family. The reranker peaks around 15 GB at batch_size=128; ≥40 GB
-        # leaves comfortable headroom on every datacenter-class GPU
-        # (A100 40/80, H100, H200, L40S, RTX 6000 Ada, Blackwell, ...).
+        # Batch size follows memory: reranker peaks ~15 GB at batch 128.
         if gb >= 40:
             print("GPU check   : OK (≥40 GB; default batch sizes safe)")
         elif gb >= 24:
@@ -116,9 +71,6 @@ except ImportError:
     print("Torch not installed yet (will be installed in Phase B).")
 PY
 
-# ------------------------------------------------------------------
-# Phase B: deps
-# ------------------------------------------------------------------
 if [ "$SKIP_INSTALL" -eq 0 ]; then
     phase "Phase B — install pinned dependencies"
     if [ ! -f requirements-h100.txt ]; then
@@ -132,42 +84,25 @@ else
     phase "Phase B — SKIPPED (--skip-install)"
 fi
 
-# ------------------------------------------------------------------
-# Phase B': ColBERTv2 install (separate, --no-deps so it does not
-# downgrade torch/transformers/sentence-transformers we already pinned).
-# Skipped if the colbertv2 result JSON is already present (smart-skip
-# parity with Phase F). ragatouille pulls in colbert-ai, faiss, ninja —
-# we install with --no-deps and then explicitly grab the runtime
-# requirements that aren't already in the environment.
-# ------------------------------------------------------------------
 if [ "$SKIP_INSTALL" -eq 0 ] && ! python3 -c "import ragatouille" 2>/dev/null; then
     if [ -f "$REPO_ROOT/data/results/colbertv2_whole_doc.json" ]; then
         log "Phase B' — ColBERTv2 result already present; skipping ragatouille install"
     else
         phase "Phase B' — install ragatouille (--no-deps to protect existing torch)"
-        # ragatouille >=0.0.9 is the cleanest API, but its setup.py pins torch
-        # ranges that conflict with cu128. --no-deps + manual fill keeps our env.
-        # Pin <0.0.10 to keep the Stanford ColBERT backend; 0.0.10+ migrates to PyLate.
+        # setup.py pins torch ranges that clash with cu128; <0.0.10 keeps the Stanford ColBERT backend.
         pip install -q --no-deps "ragatouille>=0.0.9,<0.0.10"
         pip install -q --no-deps "colbert-ai>=0.2.21"
-        # Runtime extras ragatouille/colbert actually need that aren't in our pin.
-        # langchain provides ragatouille's retrievers integration; without it,
-        # `from ragatouille import RAGPretrainedModel` fails at import on
-        # `langchain.retrievers`. langchain-community is a peer dep since 0.1.
+        # ragatouille imports langchain.retrievers at load time.
         pip install -q "bitarray>=2.9" "git-python>=1.0" "ujson>=5.0" \
                        "ninja>=1.11" "voyager>=2.0" "fast-pytorch-kmeans>=0.2" \
                        "langchain>=0.1,<0.4" "langchain-community>=0.0.20" \
                        "llama-index-core>=0.10" "accelerate>=0.30"
-        # Smoke-import to fail loud if there's still a missing piece
         python3 -c "from ragatouille import RAGPretrainedModel" \
             || { log "ragatouille import failed; ColBERTv2 phase will fail noisily"; }
         log "ragatouille installed (no torch downgrade)"
     fi
 fi
 
-# ------------------------------------------------------------------
-# Phase C: dataset (idempotent — HF cache makes re-runs free)
-# ------------------------------------------------------------------
 phase "Phase C — download T²-RAGBench (cached after first call)"
 python3 - <<'PY'
 from src.data_loader import load_t2ragbench
@@ -177,9 +112,6 @@ assert data.num_documents ==  7318, f"Expected 7318 documents, got {data.num_doc
 print(data.summary())
 PY
 
-# ------------------------------------------------------------------
-# Phase D: sanity (100 queries) — fast end-to-end pipeline check
-# ------------------------------------------------------------------
 if [ "$SKIP_SANITY" -eq 0 ]; then
     phase "Phase D — sanity (100 queries, hybrid + bge_m3 + bge rerank)"
     python3 scripts/run_experiment.py \
@@ -207,9 +139,6 @@ if [ "$SANITY_ONLY" -eq 1 ]; then
     exit 0
 fi
 
-# ------------------------------------------------------------------
-# Phase E: detect which full runs are needed.
-# ------------------------------------------------------------------
 phase "Phase E — detect missing runs"
 
 # Returns 0 (run is needed) if file missing, incomplete, or --force.
@@ -243,9 +172,6 @@ run_or_skip() {
     fi
 }
 
-# ------------------------------------------------------------------
-# Phase F: full retrieval runs.
-# ------------------------------------------------------------------
 phase "Phase F — full retrieval runs"
 
 run_or_skip "BGE-M3 dense" \
@@ -260,12 +186,7 @@ run_or_skip "BGE-M3 hybrid + BGE rerank (HEADLINE)" \
             "hybrid+bge_bge_m3_whole_doc.json" \
             --method hybrid --embedding bge_m3 --reranker bge --top-k 20
 
-# NOTE: 1024/2048 runs use plain `--reranker bge` and override max_length /
-# batch_size at the CLI rather than via separate YAML keys. This decouples
-# operating-point variation from a YAML edit, so the orchestrator works even
-# against an older HEAD that doesn't define `bge_1024` / `bge_2048` rerankers.
-# (The earlier YAML-keyed approach silently fell back to NoReranker on
-# environments where the keys weren't present, producing a 1228 s no-op run.)
+# Override max_length/batch_size on the CLI: YAML-keyed rerankers silently fell back to NoReranker on older HEADs.
 run_or_skip "BGE-M3 hybrid + BGE rerank @ max_length=1024 (in-regime sanity)" \
             "hybrid+bge_1024_bge_m3_whole_doc.json" \
             --method hybrid --embedding bge_m3 \
@@ -280,12 +201,6 @@ run_or_skip "BGE-M3 hybrid + BGE rerank @ max_length=2048 (out-of-regime sanity)
             --output-name hybrid+bge_2048_bge_m3_whole_doc \
             --top-k 20
 
-# ------------------------------------------------------------------
-# Phase F': ColBERTv2 late-interaction retrieval. Token-level retriever,
-# the natural fix named in §6 of the paper for the table-structure failure
-# mode. Uses ragatouille (PLAID-quantized index, MaxSim search) on the
-# same H100. Smart-skip via run_or_skip.
-# ------------------------------------------------------------------
 phase "Phase F' — ColBERTv2 (late-interaction)"
 
 if needs_run "colbertv2_whole_doc.json"; then
@@ -295,9 +210,6 @@ else
     log "SKIP : ColBERTv2  (already at data/results/colbertv2_whole_doc.json, 23088 records)"
 fi
 
-# ------------------------------------------------------------------
-# Phase G: provenance + final summary.
-# ------------------------------------------------------------------
 phase "Phase G — provenance + summary"
 
 pip freeze > provenance.log
@@ -350,8 +262,8 @@ Next steps (run on your laptop, NOT on the rented GPU):
    rsync -av <h100-host>:~/RAGPaper/provenance.log ./
 
 2. Aggregate + significance + figures:
-   python3 scripts/aggregate_bge_m3.py --out paper_neurips/bge_m3_results.md
-   python3 scripts/bge_m3_stats.py     --out paper_neurips/bge_m3_results.md
+   python3 scripts/aggregate_bge_m3.py --out results/bge_m3_results.md
+   python3 scripts/bge_m3_stats.py     --out results/bge_m3_results.md
    python3 scripts/generate_figures.py
 
 3. Apply the LaTeX edits described in notebooks/AFTER_H100.md.

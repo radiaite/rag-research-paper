@@ -1,8 +1,6 @@
 """LLM generation pipeline for end-to-end RAG evaluation."""
 
-from __future__ import annotations
-
-from src.utils.common import RetrievedDoc, Timer, get_logger
+from src.utils.common import RetrievedDoc, get_logger
 
 logger = get_logger(__name__)
 
@@ -29,26 +27,27 @@ class Generator:
         prompt_template: str = DEFAULT_PROMPT,
     ):
         import os
+
         from openai import AzureOpenAI
+
         self.client = AzureOpenAI(
             api_key=os.getenv("AZURE_API_KEY"),
             api_version=os.getenv("AZURE_API_VERSION", "2024-12-01-preview"),
-            azure_endpoint=os.getenv("AZURE_LLM_ENDPOINT"),
+            azure_endpoint=os.environ["AZURE_LLM_ENDPOINT"],
         )
         self.model = model
         self.temperature = temperature
         self.max_tokens = max_tokens
         self.prompt_template = prompt_template
+        self.failures = 0
 
     def generate(self, question: str, contexts: list[RetrievedDoc]) -> str:
         """Generate answer from question and retrieved contexts."""
         context_text = "\n\n---\n\n".join(
-            f"[Document {i+1}]\n{doc.text}" for i, doc in enumerate(contexts)
+            f"[Document {i + 1}]\n{doc.text}" for i, doc in enumerate(contexts)
         )
 
-        prompt = self.prompt_template.format(
-            context=context_text, question=question
-        )
+        prompt = self.prompt_template.format(context=context_text, question=question)
 
         resp = self.client.chat.completions.create(
             model=self.model,
@@ -56,7 +55,7 @@ class Generator:
             temperature=self.temperature,
             max_tokens=self.max_tokens,
         )
-        return resp.choices[0].message.content.strip()
+        return (resp.choices[0].message.content or "").strip()
 
     def generate_batch(
         self,
@@ -65,17 +64,25 @@ class Generator:
         show_progress: bool = True,
     ) -> list[str]:
         """Generate answers for a batch of questions."""
+        from openai import OpenAIError
         from tqdm import tqdm
+
         answers = []
-        iterator = zip(questions, all_contexts)
+        iterator = zip(questions, all_contexts, strict=True)
         if show_progress:
             iterator = tqdm(list(iterator), desc="Generating answers")
 
         for question, contexts in iterator:
             try:
                 answer = self.generate(question, contexts)
-            except Exception as e:
+            except OpenAIError as e:
+                # Counted so API errors are not mistaken for model abstentions.
+                self.failures += 1
                 logger.warning(f"Generation failed for '{question[:50]}...': {e}")
                 answer = "UNANSWERABLE"
             answers.append(answer)
+        if self.failures:
+            logger.warning(
+                f"{self.failures} generation call(s) failed and were scored UNANSWERABLE"
+            )
         return answers

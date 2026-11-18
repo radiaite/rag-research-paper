@@ -1,58 +1,23 @@
-# Pinned dependencies for the BGE-M3 H100 reproducibility run.
-#
-# Usage on a fresh Lambda Labs / Vast.ai / RunPod / Colab H100, H200, A100,
-# RTX 6000, or RTX Pro 6000 Blackwell instance:
-#     pip install -r requirements-h100.txt
-#     pip install -e .            # exposes src/ to sys.path
-#
-# Notes:
-# - We do NOT pin torch / torchvision here. Hosts already ship a working
-#   pair (Colab ships torch 2.10+cu128, Lambda ships torch 2.6+cu124, etc.)
-#   and re-pinning is the fastest way to desynchronize torch and torchvision.
-#   The C-ABI compatibility error we hit looks like:
-#       RuntimeError: operator torchvision::nms does not exist
-#   If the host has no torch at all, install both from the same wheel index:
-#       pip install torch torchvision \
-#           --index-url https://download.pytorch.org/whl/cu128
-# - faiss-cpu is intentional: FAISS search over 7,318 docs is CPU-fast and
-#   faiss-gpu has flaky CUDA 12 wheels at the time of writing.
-# - sentence-transformers 3+ is required for the CrossEncoder.predict
-#   batch_size kwarg. 5.x and 6.x also work.
+# Legacy H100 run (scripts/run_h100_experiment.sh). torch is not pinned: use the host's torch+torchvision pair.
+# sentence-transformers<5: 5+ pulls torchcodec, which needs FFmpeg libs Colab lacks.
 
-# ML stack (no torch pin — host's existing torch+torchvision pair is trusted).
-# sentence-transformers <5 keeps the package text-only; 5+ pulls in torchcodec
-# which requires FFmpeg shared libs Colab doesn't ship. Our usage
-# (SentenceTransformer.encode + CrossEncoder.predict) is unchanged across 3-6,
-# so the lower-version pin is purely an environment-compat workaround.
 sentence-transformers>=3.0.0,<5.0.0
 transformers>=4.45.0
 faiss-cpu>=1.8.0,<1.14.0
 huggingface-hub>=0.24.0
-
-# Data
 datasets>=3.0.0
 pandas>=2.2.0
 pyarrow>=17.0.0
 numpy>=1.26.0,<2.0.0
-
-# Sparse retrieval
 rank-bm25>=0.2.2
-
-# Eval / metrics
 scipy>=1.13.0
 rouge-score>=0.1.2
 nltk>=3.9.0
-
-# Config / utils
 pyyaml>=6.0.0
 python-dotenv>=1.0.0
 tqdm>=4.66.0
 click>=8.1.0
 rich>=13.7.0
-
-# Tokenization
 tiktoken>=0.7.0
-
-# Notebook (for bge_m3_h100.ipynb)
 ipykernel>=6.29.0
 jupyter>=1.0.0

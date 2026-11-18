@@ -1,21 +1,9 @@
-"""HyDE (Hypothetical Document Embeddings) retriever.
+"""HyDE (Hypothetical Document Embeddings) retriever."""
 
-Generates a hypothetical answer passage for a query using an LLM, embeds that
-passage as if it were a document, and searches the dense index with the
-resulting embedding.  When ``num_generations > 1``, multiple hypothetical
-documents are generated and their embeddings are averaged before search.
-
-Reference: Gao et al., "Precise Zero-Shot Dense Retrieval without Relevance
-Labels" (2022).  https://arxiv.org/abs/2212.10496
-"""
-
-from __future__ import annotations
-
-from typing import Any
+import os
 
 import numpy as np
-import os
-from openai import AzureOpenAI
+from openai import AzureOpenAI, OpenAIError
 
 from src.retrieval.base import BaseRetriever
 from src.retrieval.dense_retriever import DenseRetriever
@@ -33,32 +21,7 @@ DEFAULT_HYDE_PROMPT = (
 
 
 class HyDERetriever(BaseRetriever):
-    """Hypothetical Document Embeddings retriever.
-
-    Wraps an existing :class:`DenseRetriever` and augments retrieval by
-    first generating a hypothetical answer document with an LLM, embedding
-    that hypothetical document, and using its embedding vector to query the
-    dense index.
-
-    Parameters
-    ----------
-    dense_retriever : DenseRetriever
-        A dense retriever whose index has already been built (or will be
-        built via :meth:`build_index`).
-    llm_model : str
-        OpenAI chat model used for hypothetical document generation.
-    num_generations : int
-        Number of hypothetical documents to generate per query.  When
-        greater than 1 the embeddings are averaged before search.
-    prompt_template : str
-        A Python format string containing a ``{query}`` placeholder.
-    temperature : float
-        Sampling temperature for the LLM.
-    max_tokens : int
-        Maximum number of tokens for the generated passage.
-    openai_kwargs : dict
-        Extra keyword arguments forwarded to ``OpenAI()``.
-    """
+    """Hypothetical Document Embeddings retriever."""
 
     name: str = "hyde"
 
@@ -70,7 +33,6 @@ class HyDERetriever(BaseRetriever):
         prompt_template: str = DEFAULT_HYDE_PROMPT,
         temperature: float = 0.7,
         max_tokens: int = 256,
-        openai_kwargs: dict[str, Any] | None = None,
     ) -> None:
         self.dense_retriever = dense_retriever
         self.llm_model = llm_model
@@ -79,42 +41,20 @@ class HyDERetriever(BaseRetriever):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
+        self.llm_failures = 0
         self._client = AzureOpenAI(
             api_key=os.getenv("AZURE_API_KEY"),
             api_version=os.getenv("AZURE_API_VERSION", "2024-12-01-preview"),
-            azure_endpoint=os.getenv("AZURE_LLM_ENDPOINT"),
+            azure_endpoint=os.environ["AZURE_LLM_ENDPOINT"],
         )
 
     def build_index(self, doc_ids: list[str], documents: list[str]) -> None:
-        """Build the dense index.
-
-        Simply delegates to the wrapped :class:`DenseRetriever`.  If the
-        inner retriever already has a built index this is a no-op-safe
-        operation (FAISS will rebuild).
-
-        Parameters
-        ----------
-        doc_ids : list[str]
-            Unique identifier for each document.
-        documents : list[str]
-            Raw document texts.
-        """
+        """Build the dense index."""
         logger.info("HyDE: delegating index build to inner dense retriever.")
         self.dense_retriever.build_index(doc_ids, documents)
 
     def _generate_hypothetical_doc(self, query: str) -> str:
-        """Call the LLM to produce a single hypothetical answer passage.
-
-        Parameters
-        ----------
-        query : str
-            The user's natural-language question.
-
-        Returns
-        -------
-        str
-            A generated passage that attempts to answer *query*.
-        """
+        """Call the LLM to produce a single hypothetical answer passage."""
         prompt = self.prompt_template.format(query=query)
 
         try:
@@ -126,57 +66,30 @@ class HyDERetriever(BaseRetriever):
             )
             text = response.choices[0].message.content or ""
             return text.strip()
-        except Exception:
+        except OpenAIError:
+            self.llm_failures += 1
             logger.exception("HyDE: LLM call failed for query: %s", query)
             return query  # fall back so retrieval still runs
 
     def _generate_hypothetical_docs(self, query: str) -> list[str]:
-        """Generate ``num_generations`` hypothetical documents.
-
-        Parameters
-        ----------
-        query : str
-            The user's natural-language question.
-
-        Returns
-        -------
-        list[str]
-            Generated passages (length equals ``self.num_generations``).
-        """
+        """Generate ``num_generations`` hypothetical documents."""
         docs: list[str] = []
         for i in range(self.num_generations):
             doc = self._generate_hypothetical_doc(query)
-            logger.debug("HyDE generation %d/%d (%d chars).",
-                         i + 1, self.num_generations, len(doc))
+            logger.debug("HyDE generation %d/%d (%d chars).", i + 1, self.num_generations, len(doc))
             docs.append(doc)
         return docs
 
     def retrieve(self, query: str, top_k: int = 5) -> list[RetrievedDoc]:
-        """Generate a hypothetical document, embed it, and search the index.
-
-        When ``num_generations > 1``, multiple hypothetical documents are
-        generated.  Their embeddings are averaged (centroid) and the
-        resulting vector is used for a single FAISS search.
-
-        Parameters
-        ----------
-        query : str
-            Natural-language query string.
-        top_k : int
-            Number of documents to return.
-
-        Returns
-        -------
-        list[RetrievedDoc]
-            Results sorted by descending similarity score.
-        """
-        self.dense_retriever._ensure_index()
+        """Generate a hypothetical document, embed it, and search the index."""
+        index = self.dense_retriever.ensure_index()
 
         with Timer() as t_gen:
             hypo_docs = self._generate_hypothetical_docs(query)
 
-        logger.info("HyDE: generated %d hypothetical doc(s) in %.2f s.",
-                     len(hypo_docs), t_gen.elapsed)
+        logger.info(
+            "HyDE: generated %d hypothetical doc(s) in %.2f s.", len(hypo_docs), t_gen.elapsed
+        )
 
         # Embed as documents (not queries) since they pose as corpus passages.
         with Timer() as t_embed:
@@ -192,19 +105,17 @@ class HyDERetriever(BaseRetriever):
 
         logger.debug("HyDE: embedding took %.1f ms.", t_embed.elapsed_ms)
 
-        k = min(top_k, self.dense_retriever._index.ntotal)
-        scores, indices = self.dense_retriever._index.search(query_vec, k)
+        k = min(top_k, index.ntotal)
+        scores, indices = index.search(query_vec, k)
 
         results: list[RetrievedDoc] = []
-        for rank, (score, idx) in enumerate(
-            zip(scores[0], indices[0]), start=1
-        ):
+        for rank, (score, idx) in enumerate(zip(scores[0], indices[0], strict=True), start=1):
             if idx == -1:
                 break
             results.append(
                 RetrievedDoc(
-                    doc_id=self.dense_retriever._doc_ids[idx],
-                    text=self.dense_retriever._documents[idx],
+                    doc_id=self.dense_retriever.doc_ids[idx],
+                    text=self.dense_retriever.documents[idx],
                     score=float(score),
                     rank=rank,
                     method=self.name,

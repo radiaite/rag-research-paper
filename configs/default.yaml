@@ -1,11 +1,9 @@
-# T²-RAGBench Retrieval Benchmark - Default Configuration
-
 seed: 42
 
 dataset:
   name: "G4KMU/t2-ragbench"
   subsets: ["FinQA", "ConvFinQA", "TAT-DQA"]
-  split: "test"  # evaluation split
+  split: "test"
 
 chunking:
   strategy: "whole_doc"  # whole_doc | fixed | sentence | parent_child
@@ -23,10 +21,7 @@ embedding_models:
     provider: "local"
     model: "BAAI/bge-m3"
     dimensions: 1024
-    # 8192 = BGE-M3 native max; matches the ~8191-token context that
-    # text-embedding-3-large accepts via the OpenAI API. Required for an
-    # apples-to-apples encoder comparison on T²-RAGBench (mean doc 920 tokens
-    # but the long tail in TAT-DQA exceeds 1024).
+    # Native max, matches text-embedding-3-large's ~8191-token window.
     max_seq_length: 8192
   bge_large_en:
     provider: "local"
@@ -45,19 +40,13 @@ rerankers:
     max_length: 512
     # Tuned for H100 80 GB; reduce to 8 for MPS/CPU.
     batch_size: 128
-  # In-regime sanity: BAAI's own engineer (Shitao, HF discussion) reports the
-  # model was fine-tuned at 1024, not 512. Running at 1024 keeps us inside the
-  # trained regime while still covering the corpus mean (~920 tokens) without
-  # the truncation that 512 imposes.
+  # 1024: BAAI's stated fine-tune length.
   bge_1024:
     provider: "local"
     model: "BAAI/bge-reranker-v2-m3"
     max_length: 1024
     batch_size: 64
-  # Out-of-regime sanity: extends past BAAI's stated fine-tune length to cover
-  # the full mean+1sd doc length (~1,460 tokens) and dissolve the truncation
-  # confound entirely. Together with bge_1024, brackets the question of whether
-  # the BGE rerank degradation on hybrid is a context-window artifact.
+  # 2048: past fine-tune length, covers mean+1sd doc length (~1,460 tokens).
   bge_2048:
     provider: "local"
     model: "BAAI/bge-reranker-v2-m3"
